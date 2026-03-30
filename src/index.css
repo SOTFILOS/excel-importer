@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@theme {
+  --color-warm: #F9F7F4;
+  --color-teal: #0D6E6E;
+  --color-teal-light: #128080;
+  --color-teal-dark: #095555;
+  --color-teal-50: #EBF5F5;
+  --color-teal-100: #C6E4E4;
+  --color-amber: #E8923A;
+  --color-amber-light: #F0A85A;
+  --color-amber-dark: #C97420;
+
+  --font-sora: 'Sora', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Menlo', monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #F9F7F4;
+  font-family: 'Sora', sans-serif;
+  color: #1a1a1a;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Fade-in animation for table appearance */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.35s ease-out forwards;
+}
+
+/* Toast slide-in */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.25s ease-out forwards;
+}
