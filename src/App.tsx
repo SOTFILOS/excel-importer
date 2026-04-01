@@ -6,8 +6,10 @@ import RecordList from './components/RecordList';
 import ExportSummary from './components/ExportSummary';
 import RowDrawer from './components/RowDrawer';
 import UploadPreview from './components/UploadPreview';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import { useExcelParser } from './hooks/useExcelParser';
 import { cellStr } from './utils/fieldCategoriser';
+import { enrichRows, getUniquePMs } from './utils/projectAnalytics';
 
 /** Keep only rows whose type column value is exactly "Project" (case-insensitive). */
 function filterProjectRows(
@@ -26,6 +28,7 @@ function filterProjectRows(
 
 type ViewMode = 'cards' | 'table';
 type ReadinessFilter = 'all' | 'on-track' | 'at-risk' | 'no-status';
+type DashboardView = 'data' | 'analytics';
 
 function rowReadinessPct(headers: string[], row: Record<string, unknown>): number | null {
   let yes = 0, no = 0;
@@ -244,11 +247,18 @@ export default function App() {
   const [selectedRow, setSelectedRow] = useState<Record<string, unknown> | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [readinessFilter, setReadinessFilter] = useState<ReadinessFilter>('all');
+  const [pmFilter, setPMFilter] = useState<string>('all');
+  const [dashboardView, setDashboardView] = useState<DashboardView>('data');
 
   const { sheets, activeSheet, setActiveSheet, headers, rows, loading, error, parsedFile } =
     useExcelParser(file);
 
-  useEffect(() => { setSelectedRow(null); setReadinessFilter('all'); }, [activeSheet, file]);
+  useEffect(() => {
+    setSelectedRow(null);
+    setReadinessFilter('all');
+    setPMFilter('all');
+    setDashboardView('data');
+  }, [activeSheet, file]);
 
   useEffect(() => {
     if (error) {
@@ -278,27 +288,50 @@ export default function App() {
     [headers, rows]
   );
 
+  // Enrich all project rows (for PM list & status)
+  const allEnrichedRows = useMemo(
+    () => enrichRows(headers, projectRows),
+    [headers, projectRows]
+  );
+
+  const pmList = useMemo(() => getUniquePMs(allEnrichedRows), [allEnrichedRows]);
+
+  // Apply PM filter first, then readiness filter
+  const pmFilteredRows = useMemo(
+    () =>
+      pmFilter === 'all'
+        ? projectRows
+        : projectRows.filter((_, i) => allEnrichedRows[i]?.pm === pmFilter),
+    [projectRows, allEnrichedRows, pmFilter]
+  );
+
   const filterCounts = useMemo((): Record<ReadinessFilter, number> => {
     let onTrack = 0, atRisk = 0, noStatus = 0;
-    projectRows.forEach((row) => {
+    pmFilteredRows.forEach((row) => {
       const pct = rowReadinessPct(headers, row);
       if (pct === null) noStatus++;
       else if (pct >= 70) onTrack++;
       else if (pct < 40) atRisk++;
     });
-    return { all: projectRows.length, 'on-track': onTrack, 'at-risk': atRisk, 'no-status': noStatus };
-  }, [projectRows, headers]);
+    return { all: pmFilteredRows.length, 'on-track': onTrack, 'at-risk': atRisk, 'no-status': noStatus };
+  }, [pmFilteredRows, headers]);
 
   const filteredProjectRows = useMemo(() => {
-    if (readinessFilter === 'all') return projectRows;
-    return projectRows.filter((row) => {
+    if (readinessFilter === 'all') return pmFilteredRows;
+    return pmFilteredRows.filter((row) => {
       const pct = rowReadinessPct(headers, row);
       if (readinessFilter === 'on-track') return pct !== null && pct >= 70;
       if (readinessFilter === 'at-risk') return pct !== null && pct < 40;
       if (readinessFilter === 'no-status') return pct === null;
       return true;
     });
-  }, [projectRows, headers, readinessFilter]);
+  }, [pmFilteredRows, headers, readinessFilter]);
+
+  // Enrich the final filtered rows (for charts & Excel export)
+  const filteredEnrichedRows = useMemo(
+    () => enrichRows(headers, filteredProjectRows),
+    [headers, filteredProjectRows]
+  );
 
   const projectStats = useMemo((): ProjectStats | null => {
     if (!projectRows.length || !headers.length) return null;
@@ -399,42 +432,66 @@ export default function App() {
 
         {/* Center: Live stats */}
         {hasData && projectStats && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              backgroundColor: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 14,
-              overflow: 'hidden',
-            }}
-          >
-            <StatPill label="Projects" value={projectStats.total} valueColor="#A5B4FC" delay={0} />
-            {projectStats.avgReadiness !== null && (
-              <StatPill
-                label="Avg Readiness"
-                value={`${projectStats.avgReadiness}%`}
-                valueColor={
-                  projectStats.avgReadiness >= 70 ? '#6EE7B7' :
-                  projectStats.avgReadiness >= 40 ? '#FDE68A' : '#FCA5A5'
-                }
-                delay={80}
-              />
-            )}
-            <StatPill
-              label="On Track"
-              value={projectStats.green}
-              valueColor="#86EFAC"
-              dotColor="#22C55E"
-              delay={160}
-            />
-            <StatPill
-              label="At Risk"
-              value={projectStats.red}
-              valueColor="#FCA5A5"
-              dotColor="#EF4444"
-              delay={240}
-            />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* View tabs */}
+            <div
+              style={{
+                display: 'flex',
+                backgroundColor: 'rgba(255,255,255,0.07)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 10,
+                padding: 3,
+                gap: 2,
+              }}
+            >
+              {(['data', 'analytics'] as DashboardView[]).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setDashboardView(v)}
+                  style={{
+                    fontFamily: 'Sora, sans-serif',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    padding: '4px 14px',
+                    borderRadius: 7,
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: dashboardView === v ? '#4F46E5' : 'transparent',
+                    color: dashboardView === v ? '#FFFFFF' : '#94A3B8',
+                    transition: 'all 0.15s',
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {v === 'analytics' ? 'Analytics' : 'Data'}
+                </button>
+              ))}
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                backgroundColor: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 14,
+                overflow: 'hidden',
+              }}
+            >
+              <StatPill label="Projects" value={projectStats.total} valueColor="#A5B4FC" delay={0} />
+              {projectStats.avgReadiness !== null && (
+                <StatPill
+                  label="Avg Readiness"
+                  value={`${projectStats.avgReadiness}%`}
+                  valueColor={
+                    projectStats.avgReadiness >= 70 ? '#6EE7B7' :
+                    projectStats.avgReadiness >= 40 ? '#FDE68A' : '#FCA5A5'
+                  }
+                  delay={80}
+                />
+              )}
+              <StatPill label="On Track" value={projectStats.green} valueColor="#86EFAC" dotColor="#22C55E" delay={160} />
+              <StatPill label="At Risk" value={projectStats.red} valueColor="#FCA5A5" dotColor="#EF4444" delay={240} />
+            </div>
           </div>
         )}
 
@@ -626,12 +683,33 @@ export default function App() {
             <ExportSummary
               excelFile={parsedFile}
               activeSheet={activeSheet}
-              totalRows={projectRows.length}
+              totalRows={filteredProjectRows.length}
               totalColumns={headers.length}
               headers={headers}
               rows={filteredProjectRows}
+              enrichedRows={filteredEnrichedRows}
               onReset={handleReset}
             />
+
+            {/* Analytics Dashboard */}
+            {dashboardView === 'analytics' && (
+              <div
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid #E2E0D8',
+                  borderRadius: 20,
+                  padding: '20px',
+                  boxShadow: '0 2px 12px rgba(79,70,229,0.06)',
+                }}
+              >
+                <AnalyticsDashboard
+                  headers={headers}
+                  rows={filteredProjectRows}
+                  pmFilter={pmFilter}
+                  onPMFilterChange={(pm) => { setPMFilter(pm); }}
+                />
+              </div>
+            )}
 
             <div
               style={{
@@ -730,13 +808,16 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Bottom row: readiness filter chips */}
-                {projectRows.length > 0 && (
+                {/* Bottom row: readiness filter chips + PM filter */}
+                {pmFilteredRows.length > 0 && (
                   <div
                     style={{
-                      padding: '0 20px 12px',
+                      padding: '10px 20px 12px',
                       borderTop: '1px solid #F3F1EE',
-                      paddingTop: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 16,
+                      flexWrap: 'wrap',
                     }}
                   >
                     <FilterBar
@@ -744,6 +825,50 @@ export default function App() {
                       onChange={setReadinessFilter}
                       counts={filterCounts}
                     />
+
+                    {/* PM filter */}
+                    {pmList.length > 0 && (
+                      <>
+                        <div
+                          aria-hidden="true"
+                          style={{ width: 1, height: 20, backgroundColor: '#E2E0D8', flexShrink: 0 }}
+                        />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                          <span
+                            style={{
+                              fontFamily: 'Sora, sans-serif',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              color: '#64748B',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            PM
+                          </span>
+                          <select
+                            value={pmFilter}
+                            onChange={(e) => { setPMFilter(e.target.value); setReadinessFilter('all'); }}
+                            style={{
+                              fontFamily: 'Sora, sans-serif',
+                              fontSize: '0.8125rem',
+                              border: `1.5px solid ${pmFilter !== 'all' ? '#4F46E5' : '#E2E0D8'}`,
+                              borderRadius: 8,
+                              padding: '5px 10px',
+                              backgroundColor: pmFilter !== 'all' ? '#EEF0F8' : '#FFFFFF',
+                              color: pmFilter !== 'all' ? '#4F46E5' : '#0F172A',
+                              cursor: 'pointer',
+                              outline: 'none',
+                              minWidth: 120,
+                            }}
+                          >
+                            <option value="all">All PMs</option>
+                            {pmList.map((pm) => (
+                              <option key={pm} value={pm}>{pm}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

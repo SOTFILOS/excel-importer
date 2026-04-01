@@ -1,4 +1,6 @@
 import type { ExcelFile } from '../types/excel';
+import type { EnrichedRow } from '../utils/projectAnalytics';
+import { exportUpdatedExcel } from '../utils/projectAnalytics';
 
 interface ExportSummaryProps {
   excelFile: ExcelFile;
@@ -7,6 +9,7 @@ interface ExportSummaryProps {
   totalColumns: number;
   headers: string[];
   rows: Record<string, unknown>[];
+  enrichedRows: EnrichedRow[];
   onReset: () => void;
 }
 
@@ -91,6 +94,7 @@ export default function ExportSummary({
   totalColumns,
   headers,
   rows,
+  enrichedRows,
   onReset,
 }: ExportSummaryProps) {
   const baseName = excelFile.fileName.replace(/\.[^.]+$/, '');
@@ -153,6 +157,47 @@ export default function ExportSummary({
 
       {/* Action buttons */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        {/* Export Excel */}
+        <button
+          onClick={() => exportUpdatedExcel(headers, enrichedRows, baseName, activeSheet)}
+          disabled={enrichedRows.length === 0}
+          title={`Export ${enrichedRows.length} rows as Excel with Progress & Status`}
+          style={{
+            fontFamily: 'Sora, sans-serif',
+            fontWeight: 600,
+            fontSize: '0.8125rem',
+            color: enrichedRows.length === 0 ? '#94A3B8' : '#059669',
+            background: 'transparent',
+            border: `1.5px solid ${enrichedRows.length === 0 ? '#E2E0D8' : '#6EE7B7'}`,
+            borderRadius: 9,
+            padding: '7px 14px',
+            cursor: enrichedRows.length === 0 ? 'not-allowed' : 'pointer',
+            whiteSpace: 'nowrap',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            transition: 'all 0.15s',
+            opacity: enrichedRows.length === 0 ? 0.5 : 1,
+          }}
+          onMouseEnter={(e) => {
+            if (enrichedRows.length > 0) {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F0FDF4';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = '#059669';
+            }
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+            (e.currentTarget as HTMLButtonElement).style.borderColor =
+              enrichedRows.length === 0 ? '#E2E0D8' : '#6EE7B7';
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <rect x="2" y="1" width="10" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M4.5 5h5M4.5 7.5h5M4.5 10h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          </svg>
+          Export Excel
+        </button>
+
         {/* Export CSV */}
         <button
           onClick={() => exportCSV(headers, rows, baseName, activeSheet)}
