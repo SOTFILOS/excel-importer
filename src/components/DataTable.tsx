@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 
 interface DataTableProps {
@@ -31,7 +31,7 @@ function isUrl(value: string): boolean {
 /** Render a cell value: URLs become links, X/- flags get styled chips. */
 function CellContent({ value }: { value: unknown }) {
   const str = cellString(value);
-  if (str === '') return <span style={{ color: '#D1D5DB' }}>—</span>;
+  if (str === '') return <span style={{ color: '#CBD5E1' }}>—</span>;
 
   if (isUrl(str)) {
     return (
@@ -40,7 +40,7 @@ function CellContent({ value }: { value: unknown }) {
         target="_blank"
         rel="noopener noreferrer"
         style={{
-          color: '#0D6E6E',
+          color: '#0D9488',
           textDecoration: 'underline',
           textDecorationStyle: 'dotted',
           textUnderlineOffset: 3,
@@ -60,7 +60,7 @@ function CellContent({ value }: { value: unknown }) {
         style={{
           display: 'inline-block',
           backgroundColor: '#EBF5F5',
-          color: '#0D6E6E',
+          color: '#0D9488',
           fontWeight: 700,
           fontSize: '0.75rem',
           borderRadius: 4,
@@ -74,7 +74,7 @@ function CellContent({ value }: { value: unknown }) {
   }
 
   if (str === '-' || str === '_') {
-    return <span style={{ color: '#D1D5DB' }}>–</span>;
+    return <span style={{ color: '#CBD5E1' }}>–</span>;
   }
 
   if (str === 'Y' || str.toUpperCase() === 'YES') {
@@ -143,19 +143,19 @@ function EmptyState() {
         flexDirection: 'column',
         alignItems: 'center',
         gap: 16,
-        color: '#9CA3AF',
+        color: '#94A3B8',
       }}
     >
       <svg width="56" height="56" viewBox="0 0 56 56" fill="none" aria-hidden="true">
-        <rect width="56" height="56" rx="16" fill="#F3F4F6" />
+        <rect width="56" height="56" rx="16" fill="#EEF0F8" />
         <path
           d="M16 20h24M16 28h16M16 36h10"
-          stroke="#D1D5DB"
+          stroke="#C7D2FE"
           strokeWidth="2.5"
           strokeLinecap="round"
         />
       </svg>
-      <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 600, color: '#6B7280', margin: 0 }}>
+      <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 600, color: '#64748B', margin: 0 }}>
         No data to display
       </p>
       <p style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.875rem', margin: 0 }}>
@@ -170,6 +170,34 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
   const [sort, setSort] = useState<SortState | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(25);
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [colPanelOpen, setColPanelOpen] = useState(false);
+  const colBtnRef = useRef<HTMLButtonElement>(null);
+  const colPanelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setHiddenCols(new Set()); }, [headers]);
+
+  useEffect(() => {
+    if (!colPanelOpen) return;
+    const handle = (e: MouseEvent) => {
+      if (
+        colBtnRef.current && !colBtnRef.current.contains(e.target as Node) &&
+        colPanelRef.current && !colPanelRef.current.contains(e.target as Node)
+      ) setColPanelOpen(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [colPanelOpen]);
+
+  const toggleCol = useCallback((col: string) => {
+    setHiddenCols((prev) => {
+      const next = new Set(prev);
+      if (next.has(col)) next.delete(col); else next.add(col);
+      return next;
+    });
+  }, []);
+
+  const visibleHeaders = useMemo(() => headers.filter((h) => !hiddenCols.has(h)), [headers, hiddenCols]);
 
   const handleSearch = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
@@ -252,18 +280,18 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
               paddingRight: 12,
               paddingTop: 8,
               paddingBottom: 8,
-              border: '1.5px solid #E5E7EB',
+              border: '1.5px solid #E2E0D8',
               borderRadius: 8,
               fontFamily: 'Sora, sans-serif',
               fontSize: '0.875rem',
-              color: '#111827',
+              color: '#0F172A',
               backgroundColor: '#FFFFFF',
               outline: 'none',
               boxSizing: 'border-box',
               transition: 'border-color 0.15s',
             }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = '#0D6E6E')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
+            onFocus={(e) => (e.currentTarget.style.borderColor = '#0D9488')}
+            onBlur={(e) => (e.currentTarget.style.borderColor = '#E2E0D8')}
           />
         </div>
 
@@ -271,7 +299,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <label
             htmlFor="page-size"
-            style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem', color: '#6B7280', whiteSpace: 'nowrap' }}
+            style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem', color: '#64748B', whiteSpace: 'nowrap' }}
           >
             Rows per page
           </label>
@@ -285,11 +313,11 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
             style={{
               fontFamily: 'IBM Plex Mono, monospace',
               fontSize: '0.8125rem',
-              border: '1.5px solid #E5E7EB',
+              border: '1.5px solid #E2E0D8',
               borderRadius: 8,
               padding: '6px 10px',
               backgroundColor: '#FFFFFF',
-              color: '#111827',
+              color: '#0F172A',
               cursor: 'pointer',
               outline: 'none',
             }}
@@ -301,13 +329,146 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
             ))}
           </select>
         </div>
+
+        {/* Column visibility */}
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <button
+            ref={colBtnRef}
+            onClick={() => setColPanelOpen((p) => !p)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '7px 14px',
+              border: hiddenCols.size > 0 ? '1.5px solid #4F46E5' : '1.5px solid #E2E0D8',
+              borderRadius: 8,
+              backgroundColor: hiddenCols.size > 0 ? '#EEF0F8' : '#FFFFFF',
+              color: hiddenCols.size > 0 ? '#4F46E5' : '#64748B',
+              fontFamily: 'Sora, sans-serif',
+              fontSize: '0.8125rem',
+              fontWeight: hiddenCols.size > 0 ? 600 : 400,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <rect x="1" y="1" width="12" height="2.5" rx="1" fill="currentColor" />
+              <rect x="1" y="5.75" width="8" height="2.5" rx="1" fill="currentColor" fillOpacity="0.6" />
+              <rect x="1" y="10.5" width="5" height="2.5" rx="1" fill="currentColor" fillOpacity="0.3" />
+            </svg>
+            Columns
+            {hiddenCols.size > 0 && (
+              <span
+                style={{
+                  fontFamily: 'IBM Plex Mono, monospace',
+                  fontSize: '0.6875rem',
+                  backgroundColor: '#4F46E5',
+                  color: '#FFFFFF',
+                  borderRadius: 10,
+                  padding: '1px 7px',
+                }}
+              >
+                {hiddenCols.size} hidden
+              </span>
+            )}
+          </button>
+
+          {colPanelOpen && (
+            <div
+              ref={colPanelRef}
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                width: 220,
+                maxHeight: 300,
+                overflowY: 'auto',
+                backgroundColor: '#FFFFFF',
+                border: '1px solid #E2E0D8',
+                borderRadius: 12,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                zIndex: 50,
+              }}
+            >
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderBottom: '1px solid #F3F1EE',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.75rem', fontWeight: 600, color: '#374151' }}>
+                  Show / Hide
+                </span>
+                {hiddenCols.size > 0 && (
+                  <button
+                    onClick={() => setHiddenCols(new Set())}
+                    style={{
+                      fontFamily: 'Sora, sans-serif',
+                      fontSize: '0.6875rem',
+                      color: '#4F46E5',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 0,
+                      fontWeight: 600,
+                    }}
+                  >
+                    Show all
+                  </button>
+                )}
+              </div>
+              {headers.map((h) => {
+                const isVisible = !hiddenCols.has(h);
+                return (
+                  <label
+                    key={h}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '7px 14px',
+                      cursor: 'pointer',
+                      backgroundColor: 'transparent',
+                      transition: 'background 0.1s',
+                    }}
+                    onMouseEnter={(e) => ((e.currentTarget as HTMLLabelElement).style.backgroundColor = '#F7F5F2')}
+                    onMouseLeave={(e) => ((e.currentTarget as HTMLLabelElement).style.backgroundColor = 'transparent')}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isVisible}
+                      onChange={() => toggleCol(h)}
+                      style={{ accentColor: '#4F46E5', width: 14, height: 14, cursor: 'pointer', flexShrink: 0 }}
+                    />
+                    <span
+                      style={{
+                        fontFamily: 'IBM Plex Mono, monospace',
+                        fontSize: '0.75rem',
+                        color: isVisible ? '#1F2937' : '#94A3B8',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {h}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Table wrapper */}
       <div
         style={{
           overflowX: 'auto',
-          border: '1px solid #E5E7EB',
+          border: '1px solid #E2E0D8',
           borderRadius: 12,
           backgroundColor: '#FFFFFF',
         }}
@@ -322,8 +483,8 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
         >
           {/* Header */}
           <thead>
-            <tr style={{ backgroundColor: '#F9F7F4', borderBottom: '2px solid #E5E7EB' }}>
-              {headers.map((header, colIdx) => {
+            <tr style={{ backgroundColor: '#F3F1EE', borderBottom: '2px solid #E2E0D8' }}>
+              {visibleHeaders.map((header, colIdx) => {
                 const isActive = sort?.column === header;
                 const isFirst = colIdx === 0;
                 return (
@@ -336,19 +497,19 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
                       fontFamily: 'Sora, sans-serif',
                       fontWeight: 600,
                       fontSize: '0.75rem',
-                      color: isActive ? '#0D6E6E' : '#374151',
+                      color: isActive ? '#0D9488' : '#1F2937',
                       textTransform: 'uppercase',
                       letterSpacing: '0.05em',
                       cursor: 'pointer',
                       userSelect: 'none',
                       whiteSpace: 'nowrap',
-                      borderRight: '1px solid #E5E7EB',
+                      borderRight: '1px solid #E2E0D8',
                       // Sticky first column
                       ...(isFirst && {
                         position: 'sticky',
                         left: 0,
                         zIndex: 2,
-                        backgroundColor: '#F9F7F4',
+                        backgroundColor: '#F3F1EE',
                         boxShadow: '2px 0 4px -1px rgba(0,0,0,0.06)',
                       }),
                     }}
@@ -368,11 +529,11 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
             {visibleRows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={headers.length}
+                  colSpan={visibleHeaders.length}
                   style={{
                     padding: '40px 16px',
                     textAlign: 'center',
-                    color: '#9CA3AF',
+                    color: '#94A3B8',
                     fontFamily: 'Sora, sans-serif',
                   }}
                 >
@@ -382,16 +543,16 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
             ) : (
               visibleRows.map((row, rowIdx) => {
                 const isSelected = row === selectedRow;
-                const rowBg = isSelected ? '#EBF5F5' : rowIdx % 2 === 0 ? '#FFFFFF' : '#FAFAFA';
-                const hoverBg = isSelected ? '#D6ECEC' : '#EBF5F5';
+                const rowBg = isSelected ? '#EBF5F5' : rowIdx % 2 === 0 ? '#FFFFFF' : '#F9F8F6';
+                const hoverBg = isSelected ? '#D6ECEC' : '#EEF0F8';
                 return (
                   <tr
                     key={rowIdx}
                     onClick={() => onRowClick?.(row)}
                     style={{
-                      borderBottom: '1px solid #F3F4F6',
+                      borderBottom: '1px solid #E2E0D8',
                       backgroundColor: rowBg,
-                      borderLeft: isSelected ? '3px solid #0D6E6E' : '3px solid transparent',
+                      borderLeft: isSelected ? '3px solid #0D9488' : '3px solid transparent',
                       cursor: onRowClick ? 'pointer' : 'default',
                       transition: 'background-color 0.1s',
                     }}
@@ -402,7 +563,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
                       ((e.currentTarget as HTMLTableRowElement).style.backgroundColor = rowBg)
                     }
                   >
-                    {headers.map((header, colIdx) => {
+                    {visibleHeaders.map((header, colIdx) => {
                       const isFirst = colIdx === 0;
                       const strVal = cellString(row[header]);
                       return (
@@ -411,7 +572,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
                           style={{
                             padding: '9px 16px',
                             color: '#1F2937',
-                            borderRight: '1px solid #F3F4F6',
+                            borderRight: '1px solid #E2E0D8',
                             maxWidth: isFirst ? 80 : 260,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -424,7 +585,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
                               boxShadow: '2px 0 4px -1px rgba(0,0,0,0.06)',
                               zIndex: 1,
                               fontWeight: 600,
-                              color: isSelected ? '#0D6E6E' : '#6B7280',
+                              color: isSelected ? '#0D9488' : '#64748B',
                             }),
                           }}
                           title={strVal}
@@ -456,7 +617,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
           style={{
             fontFamily: 'IBM Plex Mono, monospace',
             fontSize: '0.8125rem',
-            color: '#6B7280',
+            color: '#64748B',
             margin: 0,
           }}
         >
@@ -489,7 +650,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
             style={{
               fontFamily: 'IBM Plex Mono, monospace',
               fontSize: '0.8125rem',
-              color: '#374151',
+              color: '#1F2937',
               padding: '4px 10px',
               minWidth: 80,
               textAlign: 'center',
@@ -536,10 +697,10 @@ function PageButton({ onClick, disabled, children, ...rest }: PageButtonProps) {
       style={{
         width: 32,
         height: 32,
-        border: '1.5px solid #E5E7EB',
+        border: '1.5px solid #E2E0D8',
         borderRadius: 6,
-        backgroundColor: disabled ? '#F9FAFB' : '#FFFFFF',
-        color: disabled ? '#D1D5DB' : '#374151',
+        backgroundColor: disabled ? '#FAFBFF' : '#FFFFFF',
+        color: disabled ? '#CBD5E1' : '#1F2937',
         fontFamily: 'IBM Plex Mono, monospace',
         fontSize: '0.875rem',
         cursor: disabled ? 'not-allowed' : 'pointer',
@@ -572,7 +733,7 @@ function SortIcon({ active, dir }: SortIconProps) {
       {/* Up arrow */}
       <path
         d="M5 1L5 11M5 1L2 4M5 1L8 4"
-        stroke={active && dir === 'asc' ? '#0D6E6E' : '#D1D5DB'}
+        stroke={active && dir === 'asc' ? '#0D9488' : '#CBD5E1'}
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -581,7 +742,7 @@ function SortIcon({ active, dir }: SortIconProps) {
       {/* Down arrow */}
       <path
         d="M5 11L5 1M5 11L2 8M5 11L8 8"
-        stroke={active && dir === 'desc' ? '#0D6E6E' : '#D1D5DB'}
+        stroke={active && dir === 'desc' ? '#0D9488' : '#CBD5E1'}
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"

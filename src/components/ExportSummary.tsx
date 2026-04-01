@@ -5,6 +5,8 @@ interface ExportSummaryProps {
   activeSheet: string;
   totalRows: number;
   totalColumns: number;
+  headers: string[];
+  rows: Record<string, unknown>[];
   onReset: () => void;
 }
 
@@ -14,53 +16,71 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  accent?: boolean;
+function exportCSV(
+  headers: string[],
+  rows: Record<string, unknown>[],
+  baseName: string,
+  sheetName: string
+): void {
+  const escape = (v: unknown): string => {
+    const s = String(v ?? '');
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? `"${s.replace(/"/g, '""')}"`
+      : s;
+  };
+  const csvRows = [
+    headers.map(escape).join(','),
+    ...rows.map((row) => headers.map((h) => escape(row[h])).join(',')),
+  ];
+  const content = '\uFEFF' + csvRows.join('\r\n'); // BOM for Excel compatibility
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${baseName}_${sheetName}.csv`.replace(/[^\w._-]/g, '_');
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
-function StatCard({ label, value, accent }: StatCardProps) {
+function MetaChip({ label, value }: { label: string; value: string | number }) {
   return (
-    <div
-      style={{
-        backgroundColor: accent ? '#EBF5F5' : '#FFFFFF',
-        border: `1px solid ${accent ? '#C6E4E4' : '#E5E7EB'}`,
-        borderRadius: 10,
-        padding: '12px 18px',
-        minWidth: 120,
-        flex: '1 1 120px',
-      }}
-    >
-      <p
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span
         style={{
           fontFamily: 'Sora, sans-serif',
           fontSize: '0.6875rem',
           fontWeight: 600,
+          color: '#94A3B8',
           textTransform: 'uppercase',
-          letterSpacing: '0.06em',
-          color: accent ? '#095555' : '#9CA3AF',
-          margin: '0 0 4px 0',
+          letterSpacing: '0.07em',
         }}
       >
         {label}
-      </p>
-      <p
+      </span>
+      <span
         style={{
           fontFamily: 'IBM Plex Mono, monospace',
-          fontWeight: 500,
-          fontSize: '1.125rem',
-          color: accent ? '#0D6E6E' : '#111827',
-          margin: 0,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
+          fontSize: '0.8125rem',
+          fontWeight: 600,
+          color: '#0F172A',
+          backgroundColor: '#F3F1EE',
+          border: '1px solid #E2E0D8',
+          borderRadius: 6,
+          padding: '2px 9px',
         }}
-        title={String(value)}
       >
         {value}
-      </p>
+      </span>
     </div>
+  );
+}
+
+function Separator() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{ width: 1, height: 16, backgroundColor: '#E2E0D8', flexShrink: 0 }}
+    />
   );
 }
 
@@ -69,77 +89,153 @@ export default function ExportSummary({
   activeSheet,
   totalRows,
   totalColumns,
+  headers,
+  rows,
   onReset,
 }: ExportSummaryProps) {
+  const baseName = excelFile.fileName.replace(/\.[^.]+$/, '');
+
   return (
     <div
       style={{
         backgroundColor: '#FFFFFF',
-        border: '1px solid #E5E7EB',
+        border: '1px solid #E2E0D8',
         borderRadius: 14,
-        padding: '16px 20px',
+        padding: '12px 20px',
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
+        gap: 8,
         flexWrap: 'wrap',
+        boxShadow: '0 1px 6px rgba(79,70,229,0.05)',
       }}
     >
-      {/* Stats */}
+      {/* File icon */}
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          backgroundColor: '#EEF0F8',
+          border: '1px solid #C7D2FE',
+          borderRadius: 8,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <rect x="2" y="1" width="9" height="13" rx="1.5" stroke="#4F46E5" strokeWidth="1.2" />
+          <path d="M11 1l3 3v10a1.5 1.5 0 01-1.5 1.5H4" stroke="#4F46E5" strokeWidth="1.2" strokeLinecap="round" />
+          <path d="M5 6h5M5 9h4" stroke="#4F46E5" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+      </div>
+
+      {/* Meta chips */}
       <div
         style={{
           display: 'flex',
-          gap: 8,
+          gap: 16,
           flex: '1 1 auto',
           flexWrap: 'wrap',
+          alignItems: 'center',
         }}
       >
-        <StatCard label="File" value={excelFile.fileName} />
-        <StatCard label="Size" value={formatBytes(excelFile.fileSize)} />
-        <StatCard label="Sheet" value={activeSheet} accent />
-        <StatCard label="Rows" value={totalRows.toLocaleString()} accent />
-        <StatCard label="Columns" value={totalColumns} accent />
+        <MetaChip label="File" value={excelFile.fileName} />
+        <Separator />
+        <MetaChip label="Size" value={formatBytes(excelFile.fileSize)} />
+        <Separator />
+        <MetaChip label="Sheet" value={activeSheet} />
+        <Separator />
+        <MetaChip label="Projects" value={totalRows.toLocaleString()} />
+        <Separator />
+        <MetaChip label="Columns" value={totalColumns} />
       </div>
 
-      {/* Reset button */}
-      <button
-        onClick={onReset}
-        aria-label="Clear current file and upload a new one"
-        style={{
-          fontFamily: 'Sora, sans-serif',
-          fontWeight: 600,
-          fontSize: '0.8125rem',
-          color: '#FFFFFF',
-          backgroundColor: '#E8923A',
-          border: 'none',
-          borderRadius: 8,
-          padding: '9px 18px',
-          cursor: 'pointer',
-          whiteSpace: 'nowrap',
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          transition: 'background-color 0.15s',
-        }}
-        onMouseEnter={(e) =>
-          ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#C97420')
-        }
-        onMouseLeave={(e) =>
-          ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#E8923A')
-        }
-      >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-          <path
-            d="M1 7C1 3.68629 3.68629 1 7 1C9.12 1 10.99 2.11 12.07 3.79M13 7C13 10.3137 10.3137 13 7 13C4.88 13 3.01 11.89 1.93 10.21"
-            stroke="white"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-          <path d="M12 1L12 4H9" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M2 13L2 10H5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        Upload New File
-      </button>
+      {/* Action buttons */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        {/* Export CSV */}
+        <button
+          onClick={() => exportCSV(headers, rows, baseName, activeSheet)}
+          disabled={rows.length === 0}
+          title={`Export ${rows.length} rows as CSV`}
+          style={{
+            fontFamily: 'Sora, sans-serif',
+            fontWeight: 600,
+            fontSize: '0.8125rem',
+            color: rows.length === 0 ? '#94A3B8' : '#0D9488',
+            background: 'transparent',
+            border: `1.5px solid ${rows.length === 0 ? '#E2E0D8' : '#A7D8D4'}`,
+            borderRadius: 9,
+            padding: '7px 14px',
+            cursor: rows.length === 0 ? 'not-allowed' : 'pointer',
+            whiteSpace: 'nowrap',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            transition: 'all 0.15s',
+            opacity: rows.length === 0 ? 0.5 : 1,
+          }}
+          onMouseEnter={(e) => {
+            if (rows.length > 0) {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#EBF5F5';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = '#0D9488';
+            }
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+            (e.currentTarget as HTMLButtonElement).style.borderColor = rows.length === 0 ? '#E2E0D8' : '#A7D8D4';
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M7 1v8M4 6l3 3 3-3M2 11h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Export CSV
+        </button>
+
+        {/* Upload new */}
+        <button
+          onClick={onReset}
+          aria-label="Clear and upload a new file"
+          style={{
+            fontFamily: 'Sora, sans-serif',
+            fontWeight: 600,
+            fontSize: '0.8125rem',
+            color: '#FFFFFF',
+            background: 'linear-gradient(135deg, #4F46E5 0%, #4338CA 100%)',
+            border: 'none',
+            borderRadius: 9,
+            padding: '8px 16px',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            transition: 'opacity 0.15s, transform 0.15s',
+            boxShadow: '0 2px 10px rgba(79,70,229,0.30)',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = '0.88';
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = '1';
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path
+              d="M1 7C1 3.68629 3.68629 1 7 1C9.12 1 10.99 2.11 12.07 3.79M13 7C13 10.3137 10.3137 13 7 13C4.88 13 3.01 11.89 1.93 10.21"
+              stroke="white"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+            <path d="M12 1L12 4H9" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M2 13L2 10H5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Upload New
+        </button>
+      </div>
     </div>
   );
 }

@@ -28,8 +28,8 @@ export default function SheetSelector({
           fontFamily: 'IBM Plex Mono, monospace',
           fontSize: '0.6875rem',
           fontWeight: 500,
-          color: '#6B7280',
-          backgroundColor: '#F3F4F6',
+          color: '#94A3B8',
+          backgroundColor: '#F3F1EE',
           borderRadius: 20,
           padding: '2px 8px',
           whiteSpace: 'nowrap',
@@ -51,9 +51,9 @@ export default function SheetSelector({
               fontFamily: 'Sora, sans-serif',
               fontSize: '0.8125rem',
               fontWeight: isActive ? 600 : 400,
-              color: isActive ? '#FFFFFF' : '#374151',
-              backgroundColor: isActive ? '#0D6E6E' : '#FFFFFF',
-              border: isActive ? '1.5px solid #0D6E6E' : '1.5px solid #E5E7EB',
+              color: isActive ? '#0B1437' : '#64748B',
+              backgroundColor: isActive ? '#0D9488' : '#FFFFFF',
+              border: isActive ? '1.5px solid #0D9488' : '1.5px solid #E2E0D8',
               borderRadius: 8,
               padding: '5px 14px',
               cursor: 'pointer',
@@ -63,14 +63,14 @@ export default function SheetSelector({
             }}
             onMouseEnter={(e) => {
               if (!isActive) {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = '#0D6E6E';
-                (e.currentTarget as HTMLButtonElement).style.color = '#0D6E6E';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = '#0D9488';
+                (e.currentTarget as HTMLButtonElement).style.color = '#0D9488';
               }
             }}
             onMouseLeave={(e) => {
               if (!isActive) {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = '#E5E7EB';
-                (e.currentTarget as HTMLButtonElement).style.color = '#374151';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = '#E2E0D8';
+                (e.currentTarget as HTMLButtonElement).style.color = '#64748B';
               }
             }}
           >

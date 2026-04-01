@@ -101,7 +101,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
         fontSize: '0.6875rem',
         textTransform: 'uppercase',
         letterSpacing: '0.08em',
-        color: '#9CA3AF',
+        color: '#94A3B8',
         margin: '0 0 12px 0',
       }}
     >
@@ -111,7 +111,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function Divider() {
-  return <div style={{ height: 1, backgroundColor: '#F3F4F6', margin: '20px 0' }} />;
+  return <div style={{ height: 1, backgroundColor: '#E2E0D8', margin: '20px 0' }} />;
 }
 
 function KvRow({ header, value }: { header: string; value: unknown }) {
@@ -131,7 +131,7 @@ function KvRow({ header, value }: { header: string; value: unknown }) {
         style={{
           fontFamily: 'Sora, sans-serif',
           fontSize: '0.75rem',
-          color: '#9CA3AF',
+          color: '#94A3B8',
           whiteSpace: 'nowrap',
           flexShrink: 0,
           minWidth: isLong ? undefined : 140,
@@ -145,7 +145,7 @@ function KvRow({ header, value }: { header: string; value: unknown }) {
         style={{
           fontFamily: isLong ? 'Sora, sans-serif' : 'IBM Plex Mono, monospace',
           fontSize: '0.8125rem',
-          color: '#111827',
+          color: '#0F172A',
           fontWeight: 500,
           wordBreak: 'break-word',
           lineHeight: 1.5,
@@ -171,12 +171,12 @@ function SystemChip({ label }: { label: string }) {
         fontFamily: 'Sora, sans-serif',
         fontSize: '0.75rem',
         fontWeight: 600,
-        color: '#0D6E6E',
+        color: '#0D9488',
         whiteSpace: 'nowrap',
       }}
     >
       <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
-        <circle cx="4" cy="4" r="4" fill="#0D6E6E" />
+        <circle cx="4" cy="4" r="4" fill="#0D9488" />
       </svg>
       {cleanLabel(label)}
     </span>
@@ -192,14 +192,14 @@ function StatusRow({ header, kind }: { header: string; kind: 'yes' | 'no' }) {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '7px 0',
-        borderBottom: '1px solid #F9F7F4',
+        borderBottom: '1px solid #E2E0D8',
       }}
     >
       <span
         style={{
           fontFamily: 'Sora, sans-serif',
           fontSize: '0.8125rem',
-          color: '#374151',
+          color: '#1F2937',
         }}
       >
         {cleanLabel(header)}
@@ -235,6 +235,147 @@ function StatusRow({ header, kind }: { header: string; kind: 'yes' | 'no' }) {
   );
 }
 
+// ── Status donut chart ────────────────────────────────────────────────────────
+
+function StatusDonut({ yesCount, noCount }: { yesCount: number; noCount: number }) {
+  const total = yesCount + noCount;
+  if (total === 0) return null;
+
+  const r = 28;
+  const sw = 7;
+  const cx = 38;
+  const cy = 38;
+  const size = 76;
+  const circumference = 2 * Math.PI * r;
+  const yesDash = (yesCount / total) * circumference;
+  const yesPct = Math.round((yesCount / total) * 100);
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 20,
+        backgroundColor: '#F3F1EE',
+        border: '1px solid #E2E0D8',
+        borderRadius: 14,
+        padding: '14px 18px',
+        marginBottom: 18,
+      }}
+    >
+      {/* Donut */}
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
+          {/* Track (no segment) */}
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="#FED7AA" strokeWidth={sw} />
+          {/* Yes arc */}
+          <circle
+            cx={cx}
+            cy={cy}
+            r={r}
+            fill="none"
+            stroke="#16A34A"
+            strokeWidth={sw}
+            strokeLinecap="round"
+            strokeDasharray={`${yesDash} ${circumference}`}
+            className="donut-arc"
+            style={{
+              transform: `rotate(-90deg)`,
+              transformOrigin: `${cx}px ${cy}px`,
+            }}
+          />
+        </svg>
+        {/* Center % label */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'IBM Plex Mono, monospace',
+              fontSize: '0.9375rem',
+              fontWeight: 700,
+              color: '#0F172A',
+              lineHeight: 1,
+            }}
+          >
+            {yesPct}%
+          </span>
+          <span
+            style={{
+              fontFamily: 'Sora, sans-serif',
+              fontSize: '0.5625rem',
+              color: '#94A3B8',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+            }}
+          >
+            ready
+          </span>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <p
+          style={{
+            fontFamily: 'Sora, sans-serif',
+            fontSize: '0.625rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: '#94A3B8',
+            margin: 0,
+          }}
+        >
+          Status Breakdown
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span
+            style={{
+              width: 9,
+              height: 9,
+              borderRadius: '50%',
+              backgroundColor: '#16A34A',
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem', color: '#1F2937' }}
+          >
+            Supported{' '}
+            <strong style={{ color: '#16A34A' }}>{yesCount}</strong>
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span
+            style={{
+              width: 9,
+              height: 9,
+              borderRadius: '50%',
+              backgroundColor: '#C2410C',
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem', color: '#1F2937' }}
+          >
+            Missing{' '}
+            <strong style={{ color: '#C2410C' }}>{noCount}</strong>
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function UrlCard({ header, value }: { header: string; value: unknown }) {
   const href = cellStr(value).trim();
   return (
@@ -247,23 +388,23 @@ function UrlCard({ header, value }: { header: string; value: unknown }) {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '10px 14px',
-        border: '1.5px solid #E5E7EB',
+        border: '1.5px solid #E2E0D8',
         borderRadius: 10,
         textDecoration: 'none',
         marginBottom: 8,
         transition: 'border-color 0.15s, background 0.15s',
-        backgroundColor: '#FAFAFA',
+        backgroundColor: '#FAFBFF',
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLAnchorElement).style.borderColor = '#0D6E6E';
+        (e.currentTarget as HTMLAnchorElement).style.borderColor = '#0D9488';
         (e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#EBF5F5';
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLAnchorElement).style.borderColor = '#E5E7EB';
-        (e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#FAFAFA';
+        (e.currentTarget as HTMLAnchorElement).style.borderColor = '#E2E0D8';
+        (e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#FAFBFF';
       }}
     >
-      <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem', fontWeight: 500, color: '#0D6E6E' }}>
+      <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem', fontWeight: 500, color: '#0D9488' }}>
         {cleanLabel(header)}
       </span>
       <span
@@ -273,7 +414,7 @@ function UrlCard({ header, value }: { header: string; value: unknown }) {
           gap: 4,
           fontFamily: 'Sora, sans-serif',
           fontSize: '0.75rem',
-          color: '#0D6E6E',
+          color: '#0D9488',
           backgroundColor: '#EBF5F5',
           border: '1px solid #C6E4E4',
           borderRadius: 6,
@@ -331,7 +472,7 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
           width: 'min(460px, 92vw)',
           height: 'calc(100vh - 60px)',
           backgroundColor: '#FFFFFF',
-          borderLeft: '1px solid #E5E7EB',
+          borderLeft: '1px solid #E2E0D8',
           transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
           transition: 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
           zIndex: 30,
@@ -347,10 +488,10 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
             <div
               style={{
                 padding: '20px 24px 16px',
-                borderBottom: '1px solid #F3F4F6',
+                borderBottom: '1px solid #E2E0D8',
                 position: 'sticky',
                 top: 0,
-                backgroundColor: '#FFFFFF',
+                background: 'linear-gradient(180deg, #FAFBFF 0%, #FFFFFF 100%)',
                 zIndex: 1,
               }}
             >
@@ -364,7 +505,7 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                         fontSize: '0.75rem',
                         fontWeight: 600,
                         color: '#FFFFFF',
-                        backgroundColor: '#0D6E6E',
+                        backgroundColor: '#0D9488',
                         borderRadius: 6,
                         padding: '3px 9px',
                       }}
@@ -379,7 +520,7 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                         fontFamily: 'Sora, sans-serif',
                         fontSize: '0.6875rem',
                         fontWeight: 600,
-                        color: '#0D6E6E',
+                        color: '#0D9488',
                         backgroundColor: '#EBF5F5',
                         border: '1px solid #C6E4E4',
                         borderRadius: 20,
@@ -398,7 +539,7 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                   style={{
                     width: 32,
                     height: 32,
-                    border: '1.5px solid #E5E7EB',
+                    border: '1.5px solid #E2E0D8',
                     borderRadius: 8,
                     backgroundColor: '#FFFFFF',
                     cursor: 'pointer',
@@ -414,11 +555,11 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                   }}
                   onMouseLeave={(e) => {
                     (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#FFFFFF';
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = '#E5E7EB';
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = '#E2E0D8';
                   }}
                 >
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                    <path d="M1 1L11 11M11 1L1 11" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" />
+                    <path d="M1 1L11 11M11 1L1 11" stroke="#94A3B8" strokeWidth="1.8" strokeLinecap="round" />
                   </svg>
                 </button>
               </div>
@@ -429,7 +570,7 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                   fontFamily: 'Sora, sans-serif',
                   fontWeight: 700,
                   fontSize: '1.0625rem',
-                  color: '#111827',
+                  color: '#0F172A',
                   margin: 0,
                   lineHeight: 1.3,
                   wordBreak: 'break-word',
@@ -473,7 +614,7 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                     style={{
                       fontFamily: 'Sora, sans-serif',
                       fontSize: '0.8125rem',
-                      color: '#9CA3AF',
+                      color: '#94A3B8',
                       fontStyle: 'italic',
                       margin: 0,
                     }}
@@ -488,6 +629,10 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                 <>
                   <Divider />
                   <SectionLabel>Status</SectionLabel>
+                  <StatusDonut
+                    yesCount={sections.statusItems.filter(({ value }) => flagKind(value) === 'yes').length}
+                    noCount={sections.statusItems.filter(({ value }) => flagKind(value) === 'no').length}
+                  />
                   <div>
                     {sections.statusItems.map(({ header, value }) => {
                       const kind = flagKind(value);
@@ -514,7 +659,7 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                 sections.activeSystems.length === 0 &&
                 sections.statusItems.length === 0 &&
                 sections.urlItems.length === 0 && (
-                  <p style={{ fontFamily: 'Sora, sans-serif', color: '#9CA3AF', textAlign: 'center', paddingTop: 40 }}>
+                  <p style={{ fontFamily: 'Sora, sans-serif', color: '#94A3B8', textAlign: 'center', paddingTop: 40 }}>
                     No data for this row.
                   </p>
                 )}

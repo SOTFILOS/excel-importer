@@ -14,7 +14,7 @@ interface RecordListProps {
   onRowClick: (row: Record<string, unknown>) => void;
 }
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+const PAGE_SIZE_OPTIONS = [12, 24, 48] as const;
 type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 
 // ── Chip atoms ────────────────────────────────────────────────────────────────
@@ -26,19 +26,19 @@ function SystemChip({ label }: { label: string }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: '#EBF5F5',
-        border: '1px solid #C6E4E4',
+        backgroundColor: '#EEF0F8',
+        border: '1px solid #C7D2FE',
         borderRadius: 6,
         padding: '2px 8px',
         fontFamily: 'Sora, sans-serif',
-        fontSize: '0.6875rem',
+        fontSize: '0.625rem',
         fontWeight: 600,
-        color: '#0D6E6E',
+        color: '#6366F1',
         whiteSpace: 'nowrap',
       }}
     >
-      <svg width="6" height="6" viewBox="0 0 6 6" fill="none" aria-hidden="true">
-        <circle cx="3" cy="3" r="3" fill="#0D6E6E" />
+      <svg width="5" height="5" viewBox="0 0 6 6" fill="none" aria-hidden="true">
+        <circle cx="3" cy="3" r="3" fill="#4F46E5" />
       </svg>
       {label}
     </span>
@@ -57,7 +57,7 @@ function StatusChip({ label, isYes }: { label: string; isYes: boolean }) {
         borderRadius: 6,
         padding: '2px 8px',
         fontFamily: 'Sora, sans-serif',
-        fontSize: '0.6875rem',
+        fontSize: '0.625rem',
         fontWeight: 600,
         color: isYes ? '#16A34A' : '#C2410C',
         whiteSpace: 'nowrap',
@@ -79,16 +79,82 @@ function TypeBadge({ value, color }: { value: string; color: PaletteColor }) {
         borderRadius: 6,
         padding: '3px 10px',
         fontFamily: 'Sora, sans-serif',
-        fontSize: '0.6875rem',
+        fontSize: '0.625rem',
         fontWeight: 700,
         color: color.text,
         whiteSpace: 'nowrap',
-        letterSpacing: '0.02em',
+        letterSpacing: '0.04em',
+        textTransform: 'uppercase',
         flexShrink: 0,
       }}
     >
       {value}
     </span>
+  );
+}
+
+// ── Progress bar ──────────────────────────────────────────────────────────────
+
+function ReadinessBar({ pct }: { pct: number }) {
+  const color =
+    pct >= 70
+      ? { bar: 'linear-gradient(90deg, #059669, #34D399)', text: '#059669' }
+      : pct >= 40
+      ? { bar: 'linear-gradient(90deg, #D97706, #FCD34D)', text: '#D97706' }
+      : { bar: 'linear-gradient(90deg, #E11D48, #FB7185)', text: '#E11D48' };
+
+  return (
+    <div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 5,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: 'Sora, sans-serif',
+            fontSize: '0.5625rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.09em',
+            color: '#94A3B8',
+          }}
+        >
+          Readiness
+        </span>
+        <span
+          style={{
+            fontFamily: 'IBM Plex Mono, monospace',
+            fontSize: '0.6875rem',
+            fontWeight: 700,
+            color: color.text,
+          }}
+        >
+          {pct}%
+        </span>
+      </div>
+      <div
+        style={{
+          height: 5,
+          backgroundColor: '#EEF0F8',
+          borderRadius: 99,
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          className="progress-bar"
+          style={{
+            height: '100%',
+            width: `${pct}%`,
+            borderRadius: 99,
+            background: color.bar,
+          }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -99,17 +165,21 @@ interface RecordCardProps {
   row: Record<string, unknown>;
   isSelected: boolean;
   onClick: () => void;
+  index: number;
 }
 
-function RecordCard({ headers, row, isSelected, onClick }: RecordCardProps) {
+function RecordCard({ headers, row, isSelected, onClick, index }: RecordCardProps) {
   const c = buildCardContent(headers, row);
   const accent = c.paletteColor.accent;
+  const border = c.paletteColor.border;
 
-  // Compact details line: show values separated by · (skip emails and long text)
+  const totalFlags = c.yesChips.length + c.noChips.length;
+  const progressPct = totalFlags > 0 ? Math.round((c.yesChips.length / totalFlags) * 100) : null;
+
   const detailLine = c.details
     .map((d) => d.value)
     .filter((v) => v.length <= 50)
-    .slice(0, 6)
+    .slice(0, 4)
     .join('  ·  ');
 
   const hasChips =
@@ -126,190 +196,222 @@ function RecordCard({ headers, row, isSelected, onClick }: RecordCardProps) {
       onClick={onClick}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}
       style={{
-        backgroundColor: isSelected ? '#EBF5F5' : '#FFFFFF',
-        border: `1.5px solid ${isSelected ? '#C6E4E4' : '#EBEBEB'}`,
-        borderLeft: `4px solid ${isSelected ? '#0D6E6E' : accent}`,
-        borderRadius: 12,
-        padding: '14px 18px',
+        backgroundColor: '#FFFFFF',
+        border: `1.5px solid ${isSelected ? border : '#E2E0D8'}`,
+        borderRadius: 16,
+        overflow: 'hidden',
         cursor: 'pointer',
-        transition: 'all 0.15s ease',
+        transition:
+          'border-color 0.18s ease, box-shadow 0.22s ease, transform 0.18s cubic-bezier(0.2,0,0,1)',
+        animation: `cardIn 0.32s cubic-bezier(0.2,0,0,1) ${Math.min(index, 12) * 40}ms both`,
+        boxShadow: isSelected
+          ? `0 0 0 3px ${accent}25, 0 8px 28px -4px ${accent}30`
+          : '0 2px 8px rgba(0,0,0,0.05)',
+        outline: 'none',
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
-        outline: 'none',
       }}
       onMouseEnter={(e) => {
         if (!isSelected) {
-          (e.currentTarget as HTMLDivElement).style.backgroundColor = '#F9F7F4';
-          (e.currentTarget as HTMLDivElement).style.borderColor = '#D1D5DB';
-          (e.currentTarget as HTMLDivElement).style.borderLeftColor = accent;
+          const el = e.currentTarget as HTMLDivElement;
+          el.style.transform = 'translateY(-3px)';
+          el.style.boxShadow = `0 12px 36px -6px ${accent}40, 0 4px 14px -2px rgba(0,0,0,0.07)`;
+          el.style.borderColor = border;
         }
       }}
       onMouseLeave={(e) => {
         if (!isSelected) {
-          (e.currentTarget as HTMLDivElement).style.backgroundColor = '#FFFFFF';
-          (e.currentTarget as HTMLDivElement).style.borderColor = '#EBEBEB';
-          (e.currentTarget as HTMLDivElement).style.borderLeftColor = accent;
+          const el = e.currentTarget as HTMLDivElement;
+          el.style.transform = 'translateY(0)';
+          el.style.boxShadow = '0 1px 8px rgba(0,0,0,0.05)';
+          el.style.borderColor = '#E2E0D8';
         }
       }}
     >
-      {/* ── Row 1: ID + Title + Type badge ─────────────────────────── */}
+      {/* Gradient top accent strip */}
       <div
         style={{
+          height: 4,
+          background: `linear-gradient(90deg, ${accent} 0%, ${accent}60 100%)`,
+          flexShrink: 0,
+        }}
+      />
+
+      {/* Card body */}
+      <div
+        style={{
+          padding: '16px 18px 18px',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          flexDirection: 'column',
           gap: 12,
-          minWidth: 0,
+          flex: 1,
         }}
       >
+        {/* Row 1: ID + Title + Type badge */}
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
             gap: 10,
-            minWidth: 0,
-            flex: 1,
           }}
         >
-          {/* ID badge */}
-          {c.id && (
-            <span
-              style={{
-                fontFamily: 'IBM Plex Mono, monospace',
-                fontSize: '0.6875rem',
-                fontWeight: 700,
-                color: '#FFFFFF',
-                backgroundColor: accent,
-                borderRadius: 6,
-                padding: '2px 8px',
-                flexShrink: 0,
-                letterSpacing: '0.02em',
-              }}
-            >
-              #{c.id}
-            </span>
-          )}
-
-          {/* Title */}
-          <span
+          <div
             style={{
-              fontFamily: 'Sora, sans-serif',
-              fontSize: '0.9375rem',
-              fontWeight: 700,
-              color: '#111827',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              minWidth: 0,
               flex: 1,
             }}
           >
-            {c.title}
-          </span>
+            {c.id && (
+              <span
+                style={{
+                  fontFamily: 'IBM Plex Mono, monospace',
+                  fontSize: '0.625rem',
+                  fontWeight: 700,
+                  color: accent,
+                  backgroundColor: c.paletteColor.bg,
+                  border: `1px solid ${border}`,
+                  borderRadius: 5,
+                  padding: '2px 7px',
+                  flexShrink: 0,
+                  letterSpacing: '0.03em',
+                }}
+              >
+                #{c.id}
+              </span>
+            )}
+            <span
+              style={{
+                fontFamily: 'Sora, sans-serif',
+                fontSize: '0.9375rem',
+                fontWeight: 700,
+                color: '#0F172A',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                flex: 1,
+              }}
+            >
+              {c.title}
+            </span>
+          </div>
+          {c.typeBadge && <TypeBadge value={c.typeBadge} color={c.paletteColor} />}
         </div>
 
-        {/* Type badge */}
-        {c.typeBadge && (
-          <TypeBadge value={c.typeBadge} color={c.paletteColor} />
+        {/* Detail sub-line */}
+        {detailLine && (
+          <p
+            style={{
+              fontFamily: 'IBM Plex Mono, monospace',
+              fontSize: '0.6875rem',
+              color: '#94A3B8',
+              margin: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {detailLine}
+          </p>
         )}
-      </div>
 
-      {/* ── Row 2: Details sub-line ─────────────────────────────────── */}
-      {detailLine && (
-        <p
-          style={{
-            fontFamily: 'IBM Plex Mono, monospace',
-            fontSize: '0.75rem',
-            color: '#9CA3AF',
-            margin: 0,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            paddingLeft: c.id ? 46 : 0,
-          }}
-        >
-          {detailLine}
-        </p>
-      )}
+        {/* Readiness progress bar */}
+        {progressPct !== null && <ReadinessBar pct={progressPct} />}
 
-      {/* ── Row 3: Chips ─────────────────────────────────────────────── */}
-      {hasChips && (
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 5,
-            alignItems: 'center',
-            paddingLeft: c.id ? 46 : 0,
-          }}
-        >
-          {/* Active system chips */}
-          {c.systemChips.map((chip) => (
-            <SystemChip key={chip} label={chip} />
-          ))}
-
-          {/* Vertical divider between systems and status */}
-          {c.systemChips.length > 0 &&
-            (c.yesChips.length > 0 || c.noChips.length > 0) && (
+        {/* Chips */}
+        {hasChips && (
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 5,
+              alignItems: 'center',
+            }}
+          >
+            {c.systemChips.map((chip) => (
+              <SystemChip key={chip} label={chip} />
+            ))}
+            {c.systemChips.length > 0 && (c.yesChips.length > 0 || c.noChips.length > 0) && (
               <span
                 aria-hidden="true"
                 style={{
                   display: 'inline-block',
                   width: 1,
-                  height: 14,
-                  backgroundColor: '#E5E7EB',
+                  height: 12,
+                  backgroundColor: '#E2E0D8',
                   marginInline: 2,
                   flexShrink: 0,
                 }}
               />
             )}
+            {c.yesChips.map((chip) => (
+              <StatusChip key={chip} label={chip} isYes={true} />
+            ))}
+            {c.noChips.map((chip) => (
+              <StatusChip key={chip} label={chip} isYes={false} />
+            ))}
+            {c.links.map((link) => (
+              <a
+                key={link.label}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  backgroundColor: '#EEF0F8',
+                  border: '1px solid #E2E0D8',
+                  borderRadius: 6,
+                  padding: '2px 8px',
+                  fontFamily: 'Sora, sans-serif',
+                  fontSize: '0.625rem',
+                  fontWeight: 600,
+                  color: '#4F46E5',
+                  textDecoration: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {link.label} ↗
+              </a>
+            ))}
+          </div>
+        )}
 
-          {/* Status chips */}
-          {c.yesChips.map((chip) => (
-            <StatusChip key={chip} label={chip} isYes={true} />
-          ))}
-          {c.noChips.map((chip) => (
-            <StatusChip key={chip} label={chip} isYes={false} />
-          ))}
-
-          {/* Link chips */}
-          {c.links.map((link) => (
-            <a
-              key={link.label}
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
+        {/* Footer: systems count */}
+        {c.systemChips.length > 0 && (
+          <div
+            style={{
+              marginTop: 'auto',
+              paddingTop: 10,
+              borderTop: '1px solid #E2E0D8',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <rect x="1" y="1" width="4" height="4" rx="1" fill="#94A3B8" />
+              <rect x="7" y="1" width="4" height="4" rx="1" fill="#94A3B8" fillOpacity="0.5" />
+              <rect x="1" y="7" width="4" height="4" rx="1" fill="#94A3B8" fillOpacity="0.5" />
+              <rect x="7" y="7" width="4" height="4" rx="1" fill="#94A3B8" fillOpacity="0.3" />
+            </svg>
+            <span
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                backgroundColor: '#F9F7F4',
-                border: '1px solid #E5E7EB',
-                borderRadius: 6,
-                padding: '2px 8px',
                 fontFamily: 'Sora, sans-serif',
                 fontSize: '0.6875rem',
-                fontWeight: 600,
-                color: '#0D6E6E',
-                textDecoration: 'none',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.12s',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#EBF5F5';
-                (e.currentTarget as HTMLAnchorElement).style.borderColor = '#C6E4E4';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#F9F7F4';
-                (e.currentTarget as HTMLAnchorElement).style.borderColor = '#E5E7EB';
+                color: '#94A3B8',
               }}
             >
-              {link.label} ↗
-            </a>
-          ))}
-        </div>
-      )}
+              {c.systemChips.length} system{c.systemChips.length !== 1 ? 's' : ''} affected
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -325,14 +427,26 @@ function EmptyState({ isFiltered }: { isFiltered: boolean }) {
         flexDirection: 'column',
         alignItems: 'center',
         gap: 14,
-        color: '#9CA3AF',
+        color: '#94A3B8',
       }}
     >
-      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-        <rect width="48" height="48" rx="14" fill="#F3F4F6" />
-        <path d="M14 18h20M14 24h14M14 30h8" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round" />
+      <svg width="52" height="52" viewBox="0 0 52 52" fill="none" aria-hidden="true">
+        <rect width="52" height="52" rx="16" fill="#EEF0F8" />
+        <path
+          d="M14 20h24M14 26h16M14 32h10"
+          stroke="#C7D2FE"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        />
       </svg>
-      <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 600, color: '#6B7280', margin: 0 }}>
+      <p
+        style={{
+          fontFamily: 'Sora, sans-serif',
+          fontWeight: 600,
+          color: '#64748B',
+          margin: 0,
+        }}
+      >
         {isFiltered ? 'No records match your search' : 'No data to display'}
       </p>
       {isFiltered && (
@@ -346,6 +460,107 @@ function EmptyState({ isFiltered }: { isFiltered: boolean }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+type ListMode = 'grid' | 'compact';
+
+function CompactRow({
+  headers,
+  row,
+  isSelected,
+  onClick,
+}: {
+  headers: string[];
+  row: Record<string, unknown>;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const c = buildCardContent(headers, row);
+  const totalFlags = c.yesChips.length + c.noChips.length;
+  const pct = totalFlags > 0 ? Math.round((c.yesChips.length / totalFlags) * 100) : null;
+  const barColor =
+    pct === null ? '#E2E0D8'
+    : pct >= 70 ? '#22C55E'
+    : pct >= 40 ? '#F59E0B'
+    : '#EF4444';
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={isSelected}
+      onClick={onClick}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 16px',
+        backgroundColor: isSelected ? '#EBF5F5' : '#FFFFFF',
+        borderLeft: `3px solid ${isSelected ? '#0D9488' : 'transparent'}`,
+        borderBottom: '1px solid #F3F1EE',
+        cursor: 'pointer',
+        transition: 'background 0.12s',
+        outline: 'none',
+      }}
+      onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.backgroundColor = '#F7F5F2'; }}
+      onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.backgroundColor = '#FFFFFF'; }}
+    >
+      {/* Accent dot */}
+      <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: c.paletteColor.accent, flexShrink: 0 }} />
+
+      {/* ID */}
+      {c.id && (
+        <span style={{
+          fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.625rem', fontWeight: 700,
+          color: c.paletteColor.accent, backgroundColor: c.paletteColor.bg,
+          border: `1px solid ${c.paletteColor.border}`, borderRadius: 4,
+          padding: '1px 6px', flexShrink: 0,
+        }}>
+          #{c.id}
+        </span>
+      )}
+
+      {/* Title */}
+      <span style={{
+        fontFamily: 'Sora, sans-serif', fontSize: '0.875rem', fontWeight: 600,
+        color: '#0F172A', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {c.title}
+      </span>
+
+      {/* Type badge */}
+      {c.typeBadge && (
+        <span style={{
+          fontFamily: 'Sora, sans-serif', fontSize: '0.5625rem', fontWeight: 700,
+          textTransform: 'uppercase', letterSpacing: '0.04em',
+          color: c.paletteColor.text, backgroundColor: c.paletteColor.bg,
+          border: `1px solid ${c.paletteColor.border}`, borderRadius: 4, padding: '2px 7px', flexShrink: 0,
+        }}>
+          {c.typeBadge}
+        </span>
+      )}
+
+      {/* Inline progress bar */}
+      {pct !== null && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <div style={{ width: 80, height: 5, backgroundColor: '#F3F1EE', borderRadius: 99, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${pct}%`, backgroundColor: barColor, borderRadius: 99 }} />
+          </div>
+          <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, color: barColor, minWidth: 32 }}>
+            {pct}%
+          </span>
+        </div>
+      )}
+
+      {/* Systems count */}
+      {c.systemChips.length > 0 && (
+        <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.6875rem', color: '#94A3B8', flexShrink: 0 }}>
+          {c.systemChips.length} sys
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function RecordList({
   headers,
   rows,
@@ -354,7 +569,8 @@ export default function RecordList({
 }: RecordListProps) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<PageSize>(25);
+  const [pageSize, setPageSize] = useState<PageSize>(12);
+  const [listMode, setListMode] = useState<ListMode>('grid');
 
   const handleSearch = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
@@ -379,11 +595,11 @@ export default function RecordList({
   if (headers.length === 0) return <EmptyState isFiltered={false} />;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* ── Toolbar ─────────────────────────────────────────────────── */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* ── Toolbar ──────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         {/* Search */}
-        <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 180 }}>
+        <div style={{ position: 'relative', flex: '1 1 240px', minWidth: 200 }}>
           <svg
             width="16"
             height="16"
@@ -391,51 +607,57 @@ export default function RecordList({
             fill="none"
             style={{
               position: 'absolute',
-              left: 10,
+              left: 11,
               top: '50%',
               transform: 'translateY(-50%)',
               pointerEvents: 'none',
             }}
             aria-hidden="true"
           >
-            <circle cx="6.5" cy="6.5" r="5" stroke="#9CA3AF" strokeWidth="1.5" />
-            <path d="M10.5 10.5L14 14" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" />
+            <circle cx="6.5" cy="6.5" r="5" stroke="#94A3B8" strokeWidth="1.5" />
+            <path d="M10.5 10.5L14 14" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
           <input
             type="search"
             value={search}
             onChange={handleSearch}
-            placeholder="Search records…"
-            aria-label="Search records"
+            placeholder="Search projects…"
+            aria-label="Search projects"
             style={{
               width: '100%',
-              paddingLeft: 34,
+              paddingLeft: 36,
               paddingRight: 12,
-              paddingTop: 8,
-              paddingBottom: 8,
-              border: '1.5px solid #E5E7EB',
-              borderRadius: 8,
+              paddingTop: 9,
+              paddingBottom: 9,
+              border: '1.5px solid #E2E0D8',
+              borderRadius: 10,
               fontFamily: 'Sora, sans-serif',
               fontSize: '0.875rem',
-              color: '#111827',
-              backgroundColor: '#FFFFFF',
+              color: '#0F172A',
+              backgroundColor: '#F3F1EE',
               outline: 'none',
               boxSizing: 'border-box',
-              transition: 'border-color 0.15s',
+              transition: 'border-color 0.15s, box-shadow 0.15s',
             }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = '#0D6E6E')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = '#4F46E5';
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(79,70,229,0.12)';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = '#E2E0D8';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
           />
         </div>
 
-        {/* Rows per page */}
+        {/* Per page */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <label
             htmlFor="rpl-page-size"
             style={{
               fontFamily: 'Sora, sans-serif',
               fontSize: '0.8125rem',
-              color: '#6B7280',
+              color: '#64748B',
               whiteSpace: 'nowrap',
             }}
           >
@@ -451,11 +673,11 @@ export default function RecordList({
             style={{
               fontFamily: 'IBM Plex Mono, monospace',
               fontSize: '0.8125rem',
-              border: '1.5px solid #E5E7EB',
+              border: '1.5px solid #E2E0D8',
               borderRadius: 8,
               padding: '6px 10px',
               backgroundColor: '#FFFFFF',
-              color: '#111827',
+              color: '#0F172A',
               cursor: 'pointer',
               outline: 'none',
             }}
@@ -467,20 +689,99 @@ export default function RecordList({
             ))}
           </select>
         </div>
+
+        {/* Result count badge */}
+        <span
+          style={{
+            fontFamily: 'IBM Plex Mono, monospace',
+            fontSize: '0.75rem',
+            color: '#4F46E5',
+            backgroundColor: '#EEF0F8',
+            border: '1px solid #C7D2FE',
+            borderRadius: 20,
+            padding: '4px 12px',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}
+        >
+          {totalRows} project{totalRows !== 1 ? 's' : ''}
+        </span>
+
+        {/* Grid / Compact toggle */}
+        <div style={{ display: 'flex', border: '1.5px solid #E2E0D8', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+          {(['grid', 'compact'] as ListMode[]).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setListMode(mode)}
+              aria-pressed={listMode === mode}
+              title={mode === 'grid' ? 'Card grid' : 'Compact list'}
+              style={{
+                width: 32, height: 30, border: 'none',
+                backgroundColor: listMode === mode ? '#4F46E5' : '#FFFFFF',
+                color: listMode === mode ? '#FFFFFF' : '#94A3B8',
+                cursor: listMode === mode ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.15s',
+              }}
+            >
+              {mode === 'grid' ? (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <rect x="1" y="1" width="5" height="4" rx="1.5" fill="currentColor" />
+                  <rect x="8" y="1" width="5" height="4" rx="1.5" fill="currentColor" fillOpacity="0.4" />
+                  <rect x="1" y="7" width="5" height="4" rx="1.5" fill="currentColor" fillOpacity="0.4" />
+                  <rect x="8" y="7" width="5" height="4" rx="1.5" fill="currentColor" fillOpacity="0.4" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <rect x="1" y="1" width="12" height="2.5" rx="1" fill="currentColor" />
+                  <rect x="1" y="5.5" width="12" height="2.5" rx="1" fill="currentColor" fillOpacity="0.6" />
+                  <rect x="1" y="10" width="12" height="2.5" rx="1" fill="currentColor" fillOpacity="0.3" />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* ── Card list ───────────────────────────────────────────────── */}
+      {/* ── Content ──────────────────────────────────────────────────── */}
       {visibleRows.length === 0 ? (
         <EmptyState isFiltered={search.trim().length > 0} />
-      ) : (
+      ) : listMode === 'grid' ? (
         <div
           role="list"
-          aria-label="Records"
-          style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+          aria-label="Projects"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+            gap: 16,
+          }}
         >
           {visibleRows.map((row, idx) => (
             <div key={idx} role="listitem">
               <RecordCard
+                headers={headers}
+                row={row}
+                isSelected={row === selectedRow}
+                onClick={() => onRowClick(row)}
+                index={idx}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div
+          role="list"
+          aria-label="Projects"
+          style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid #E2E0D8',
+            borderRadius: 12,
+            overflow: 'hidden',
+          }}
+        >
+          {visibleRows.map((row, idx) => (
+            <div key={idx} role="listitem">
+              <CompactRow
                 headers={headers}
                 row={row}
                 isSelected={row === selectedRow}
@@ -491,7 +792,7 @@ export default function RecordList({
         </div>
       )}
 
-      {/* ── Pagination footer ───────────────────────────────────────── */}
+      {/* ── Pagination ───────────────────────────────────────────────── */}
       <div
         style={{
           display: 'flex',
@@ -506,7 +807,7 @@ export default function RecordList({
           style={{
             fontFamily: 'IBM Plex Mono, monospace',
             fontSize: '0.8125rem',
-            color: '#6B7280',
+            color: '#64748B',
             margin: 0,
           }}
         >
@@ -514,27 +815,30 @@ export default function RecordList({
             ? 'No results'
             : `${startIdx + 1}–${endIdx} of ${totalRows} records`}
           {search && rows.length !== totalRows && (
-            <span style={{ color: '#9CA3AF' }}> (filtered from {rows.length})</span>
+            <span style={{ color: '#94A3B8' }}> (filtered from {rows.length})</span>
           )}
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <PgBtn onClick={() => setPage(1)} disabled={safePage === 1} label="First page">«</PgBtn>
-          <PgBtn onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1} label="Previous page">‹</PgBtn>
+          <PgBtn onClick={() => setPage(1)} disabled={safePage === 1} label="First">«</PgBtn>
+          <PgBtn onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1} label="Prev">‹</PgBtn>
           <span
             style={{
               fontFamily: 'IBM Plex Mono, monospace',
               fontSize: '0.8125rem',
-              color: '#374151',
-              padding: '4px 12px',
+              color: '#1F2937',
+              padding: '4px 14px',
               minWidth: 72,
               textAlign: 'center',
+              backgroundColor: '#FAFBFF',
+              border: '1.5px solid #E2E0D8',
+              borderRadius: 8,
             }}
           >
             {safePage} / {totalPages}
           </span>
-          <PgBtn onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages} label="Next page">›</PgBtn>
-          <PgBtn onClick={() => setPage(totalPages)} disabled={safePage === totalPages} label="Last page">»</PgBtn>
+          <PgBtn onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages} label="Next">›</PgBtn>
+          <PgBtn onClick={() => setPage(totalPages)} disabled={safePage === totalPages} label="Last">»</PgBtn>
         </div>
       </div>
     </div>
@@ -560,16 +864,29 @@ function PgBtn({
       style={{
         width: 32,
         height: 32,
-        border: '1.5px solid #E5E7EB',
-        borderRadius: 6,
-        backgroundColor: disabled ? '#F9FAFB' : '#FFFFFF',
-        color: disabled ? '#D1D5DB' : '#374151',
+        border: '1.5px solid #E2E0D8',
+        borderRadius: 8,
+        backgroundColor: disabled ? '#F8FAFC' : '#FFFFFF',
+        color: disabled ? '#CBD5E1' : '#1F2937',
         fontFamily: 'IBM Plex Mono, monospace',
         fontSize: '0.875rem',
         cursor: disabled ? 'not-allowed' : 'pointer',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        transition: 'all 0.12s',
+      }}
+      onMouseEnter={(e) => {
+        if (!disabled) {
+          (e.currentTarget as HTMLButtonElement).style.borderColor = '#4F46E5';
+          (e.currentTarget as HTMLButtonElement).style.color = '#4F46E5';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!disabled) {
+          (e.currentTarget as HTMLButtonElement).style.borderColor = '#E2E8F0';
+          (e.currentTarget as HTMLButtonElement).style.color = '#1F2937';
+        }
       }}
     >
       {children}
@@ -577,10 +894,10 @@ function PgBtn({
   );
 }
 
-/** Compact key-value display — used when a column name needs a label prefix. */
+/** Compact key-value display */
 export function KvLine({ label, value }: { label: string; value: string }) {
   return (
-    <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.75rem', color: '#9CA3AF' }}>
+    <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.75rem', color: '#94A3B8' }}>
       {cleanLabel(label)}:{' '}
       <span style={{ color: '#374151' }}>{value}</span>
     </span>

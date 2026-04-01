@@ -1,13 +1,194 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import FileUpload from './components/FileUpload';
 import SheetSelector from './components/SheetSelector';
 import DataTable from './components/DataTable';
 import RecordList from './components/RecordList';
 import ExportSummary from './components/ExportSummary';
 import RowDrawer from './components/RowDrawer';
+import UploadPreview from './components/UploadPreview';
 import { useExcelParser } from './hooks/useExcelParser';
+import { cellStr } from './utils/fieldCategoriser';
+
+/** Keep only rows whose type column value is exactly "Project" (case-insensitive). */
+function filterProjectRows(
+  headers: string[],
+  rows: Record<string, unknown>[]
+): Record<string, unknown>[] {
+  const typeHeader = headers.find((h) => {
+    const lo = h.toLowerCase();
+    return lo.includes('type') || lo.includes('category') || lo.includes('kind');
+  });
+  if (!typeHeader) return rows;
+  return rows.filter(
+    (row) => cellStr(row[typeHeader]).trim().toLowerCase() === 'project'
+  );
+}
 
 type ViewMode = 'cards' | 'table';
+type ReadinessFilter = 'all' | 'on-track' | 'at-risk' | 'no-status';
+
+function rowReadinessPct(headers: string[], row: Record<string, unknown>): number | null {
+  let yes = 0, no = 0;
+  headers.forEach((h) => {
+    const v = String(row[h] ?? '').trim().toUpperCase();
+    if (v === 'Y' || v === 'YES') yes++;
+    else if (v === 'N' || v === 'NO') no++;
+  });
+  const total = yes + no;
+  return total > 0 ? Math.round((yes / total) * 100) : null;
+}
+
+const FILTER_OPTIONS: { key: ReadinessFilter; label: string; dotColor?: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'on-track', label: 'On Track', dotColor: '#22C55E' },
+  { key: 'at-risk', label: 'At Risk', dotColor: '#EF4444' },
+  { key: 'no-status', label: 'No Status' },
+];
+
+function FilterBar({
+  active,
+  onChange,
+  counts,
+}: {
+  active: ReadinessFilter;
+  onChange: (f: ReadinessFilter) => void;
+  counts: Record<ReadinessFilter, number>;
+}) {
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+      {FILTER_OPTIONS.map(({ key, label, dotColor }) => {
+        const isActive = active === key;
+        return (
+          <button
+            key={key}
+            onClick={() => onChange(key)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '5px 14px',
+              borderRadius: 20,
+              border: isActive ? '1.5px solid #4F46E5' : '1.5px solid #E2E0D8',
+              backgroundColor: isActive ? '#4F46E5' : '#FFFFFF',
+              color: isActive ? '#FFFFFF' : '#64748B',
+              fontFamily: 'Sora, sans-serif',
+              fontSize: '0.8125rem',
+              fontWeight: isActive ? 600 : 400,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {dotColor && (
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  backgroundColor: isActive ? 'rgba(255,255,255,0.8)' : dotColor,
+                  flexShrink: 0,
+                }}
+              />
+            )}
+            {label}
+            <span
+              style={{
+                fontFamily: 'IBM Plex Mono, monospace',
+                fontSize: '0.6875rem',
+                backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : '#F3F1EE',
+                borderRadius: 10,
+                padding: '1px 7px',
+                color: isActive ? '#FFFFFF' : '#94A3B8',
+                minWidth: 18,
+                textAlign: 'center',
+              }}
+            >
+              {counts[key]}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+interface ProjectStats {
+  total: number;
+  avgReadiness: number | null;
+  green: number;
+  red: number;
+}
+
+// ── Header stat pill ──────────────────────────────────────────────────────────
+
+function StatPill({
+  label,
+  value,
+  valueColor,
+  dotColor,
+  delay = 0,
+}: {
+  label: string;
+  value: string | number;
+  valueColor: string;
+  dotColor?: string;
+  delay?: number;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '6px 20px',
+        borderRight: '1px solid rgba(255,255,255,0.07)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {dotColor && (
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              backgroundColor: dotColor,
+              flexShrink: 0,
+              boxShadow: `0 0 8px ${dotColor}99`,
+            }}
+          />
+        )}
+        <span
+          className="stat-in"
+          style={{
+            fontFamily: 'IBM Plex Mono, monospace',
+            fontWeight: 700,
+            fontSize: '1.125rem',
+            color: valueColor,
+            lineHeight: 1,
+            animationDelay: `${delay}ms`,
+          }}
+        >
+          {value}
+        </span>
+      </div>
+      <span
+        style={{
+          fontFamily: 'Sora, sans-serif',
+          fontSize: '0.5625rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.09em',
+          color: '#94A3B8',
+          marginTop: 4,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+// ── View toggle button ────────────────────────────────────────────────────────
 
 function ViewToggleBtn({
   active,
@@ -32,8 +213,8 @@ function ViewToggleBtn({
         width: 32,
         height: 30,
         border: 'none',
-        backgroundColor: active ? '#0D6E6E' : '#FFFFFF',
-        color: active ? '#FFFFFF' : '#9CA3AF',
+        backgroundColor: active ? '#4F46E5' : '#EEF0F8',
+        color: active ? '#FFFFFF' : '#94A3B8',
         cursor: active ? 'default' : 'pointer',
         transition: 'all 0.15s',
       }}
@@ -43,6 +224,8 @@ function ViewToggleBtn({
   );
 }
 
+// ── Toast ─────────────────────────────────────────────────────────────────────
+
 interface Toast {
   id: number;
   message: string;
@@ -50,24 +233,23 @@ interface Toast {
 }
 
 let toastCounter = 0;
-
 const DRAWER_WIDTH = 460;
+
+// ── App ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [file, setFile] = useState<File | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [selectedRow, setSelectedRow] = useState<Record<string, unknown> | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [readinessFilter, setReadinessFilter] = useState<ReadinessFilter>('all');
 
   const { sheets, activeSheet, setActiveSheet, headers, rows, loading, error, parsedFile } =
     useExcelParser(file);
 
-  // Reset selected row when sheet or file changes
-  useEffect(() => {
-    setSelectedRow(null);
-  }, [activeSheet, file]);
+  useEffect(() => { setSelectedRow(null); setReadinessFilter('all'); }, [activeSheet, file]);
 
-  // Show toast on parse error
   useEffect(() => {
     if (error) {
       const id = ++toastCounter;
@@ -79,122 +261,232 @@ export default function App() {
     }
   }, [error]);
 
-  const handleFileSelect = useCallback((f: File) => {
-    setFile(f);
-    setSelectedRow(null);
-  }, []);
-
-  const handleReset = useCallback(() => {
-    setFile(null);
-    setSelectedRow(null);
-  }, []);
-
+  const handleFileSelect = useCallback((f: File) => { setPendingFile(f); }, []);
+  const handlePreviewConfirm = useCallback((f: File) => { setFile(f); setPendingFile(null); setSelectedRow(null); }, []);
+  const handlePreviewCancel = useCallback(() => { setPendingFile(null); }, []);
+  const handleReset = useCallback(() => { setFile(null); setSelectedRow(null); }, []);
   const handleRowClick = useCallback((row: Record<string, unknown>) => {
     setSelectedRow((prev) => (prev === row ? null : row));
   }, []);
-
-  const handleDrawerClose = useCallback(() => {
-    setSelectedRow(null);
-  }, []);
-
+  const handleDrawerClose = useCallback(() => { setSelectedRow(null); }, []);
   const dismissToast = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  const projectRows = useMemo(
+    () => filterProjectRows(headers, rows),
+    [headers, rows]
+  );
+
+  const filterCounts = useMemo((): Record<ReadinessFilter, number> => {
+    let onTrack = 0, atRisk = 0, noStatus = 0;
+    projectRows.forEach((row) => {
+      const pct = rowReadinessPct(headers, row);
+      if (pct === null) noStatus++;
+      else if (pct >= 70) onTrack++;
+      else if (pct < 40) atRisk++;
+    });
+    return { all: projectRows.length, 'on-track': onTrack, 'at-risk': atRisk, 'no-status': noStatus };
+  }, [projectRows, headers]);
+
+  const filteredProjectRows = useMemo(() => {
+    if (readinessFilter === 'all') return projectRows;
+    return projectRows.filter((row) => {
+      const pct = rowReadinessPct(headers, row);
+      if (readinessFilter === 'on-track') return pct !== null && pct >= 70;
+      if (readinessFilter === 'at-risk') return pct !== null && pct < 40;
+      if (readinessFilter === 'no-status') return pct === null;
+      return true;
+    });
+  }, [projectRows, headers, readinessFilter]);
+
+  const projectStats = useMemo((): ProjectStats | null => {
+    if (!projectRows.length || !headers.length) return null;
+    let totalYes = 0, totalNo = 0, green = 0, red = 0;
+    projectRows.forEach((row) => {
+      let yes = 0, no = 0;
+      headers.forEach((h) => {
+        const v = String(row[h] ?? '').trim().toUpperCase();
+        if (v === 'Y' || v === 'YES') yes++;
+        else if (v === 'N' || v === 'NO') no++;
+      });
+      totalYes += yes;
+      totalNo += no;
+      const t = yes + no;
+      if (t > 0) {
+        if (yes / t >= 0.7) green++;
+        else if (yes / t < 0.4) red++;
+      }
+    });
+    const total = totalYes + totalNo;
+    return {
+      total: projectRows.length,
+      avgReadiness: total > 0 ? Math.round((totalYes / total) * 100) : null,
+      green,
+      red,
+    };
+  }, [projectRows, headers]);
 
   const hasData = parsedFile !== null && !loading;
   const drawerOpen = selectedRow !== null;
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        backgroundColor: '#F9F7F4',
-        fontFamily: 'Sora, sans-serif',
-      }}
-    >
-      {/* ── Header ────────────────────────────────────────────────── */}
+    <div style={{ minHeight: '100vh', backgroundColor: '#F7F5F2', fontFamily: 'Sora, sans-serif' }}>
+
+      {/* ── Header ──────────────────────────────────────────────────────── */}
       <header
         style={{
-          borderBottom: '1px solid #E5E7EB',
-          backgroundColor: '#FFFFFF',
-          padding: '0 24px',
-          height: 60,
+          background: 'linear-gradient(135deg, #0B1437 0%, #1A1654 100%)',
+          padding: '0 28px',
+          height: 64,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           position: 'sticky',
           top: 0,
           zIndex: 40,
+          boxShadow: '0 4px 32px -4px rgba(11,20,55,0.6)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Logo + name */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
           <div
             style={{
-              width: 32,
-              height: 32,
-              backgroundColor: '#0D6E6E',
-              borderRadius: 8,
+              width: 36,
+              height: 36,
+              background: 'linear-gradient(135deg, #4F46E5 0%, #0D9488 100%)',
+              borderRadius: 10,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
+              boxShadow: '0 2px 16px rgba(79,70,229,0.5)',
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 18 18" fill="none" aria-hidden="true">
               <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white" fillOpacity="0.9" />
               <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" fillOpacity="0.5" />
               <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" fillOpacity="0.5" />
-              <rect x="10" y="10" width="6" height="6" rx="1.5" fill="#E8923A" />
+              <rect x="10" y="10" width="6" height="6" rx="1.5" fill="#F59E0B" />
             </svg>
           </div>
-          <span
-            style={{
-              fontFamily: 'Sora, sans-serif',
-              fontWeight: 700,
-              fontSize: '1rem',
-              color: '#111827',
-            }}
-          >
-            Excel Importer
-          </span>
+          <div>
+            <span
+              style={{
+                fontFamily: 'Sora, sans-serif',
+                fontWeight: 700,
+                fontSize: '1rem',
+                color: '#F8FAFC',
+                display: 'block',
+                lineHeight: 1.2,
+              }}
+            >
+              Project Tracker
+            </span>
+            <span
+              style={{
+                fontFamily: 'Sora, sans-serif',
+                fontSize: '0.625rem',
+                color: '#94A3B8',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Excel Importer
+            </span>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Center: Live stats */}
+        {hasData && projectStats && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 14,
+              overflow: 'hidden',
+            }}
+          >
+            <StatPill label="Projects" value={projectStats.total} valueColor="#A5B4FC" delay={0} />
+            {projectStats.avgReadiness !== null && (
+              <StatPill
+                label="Avg Readiness"
+                value={`${projectStats.avgReadiness}%`}
+                valueColor={
+                  projectStats.avgReadiness >= 70 ? '#6EE7B7' :
+                  projectStats.avgReadiness >= 40 ? '#FDE68A' : '#FCA5A5'
+                }
+                delay={80}
+              />
+            )}
+            <StatPill
+              label="On Track"
+              value={projectStats.green}
+              valueColor="#86EFAC"
+              dotColor="#22C55E"
+              delay={160}
+            />
+            <StatPill
+              label="At Risk"
+              value={projectStats.red}
+              valueColor="#FCA5A5"
+              dotColor="#EF4444"
+              delay={240}
+            />
+          </div>
+        )}
+
+        {/* Right: file badge + esc hint */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           {hasData && (
             <span
               style={{
                 fontFamily: 'IBM Plex Mono, monospace',
                 fontSize: '0.75rem',
-                color: '#0D6E6E',
-                backgroundColor: '#EBF5F5',
-                border: '1px solid #C6E4E4',
+                color: '#CBD5E1',
+                backgroundColor: 'rgba(255,255,255,0.07)',
+                border: '1px solid rgba(255,255,255,0.12)',
                 borderRadius: 20,
-                padding: '3px 10px',
+                padding: '3px 12px',
+                maxWidth: 200,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
             >
               {parsedFile.fileName}
             </span>
           )}
           {drawerOpen && (
-            <span
-              style={{
-                fontFamily: 'Sora, sans-serif',
-                fontSize: '0.75rem',
-                color: '#6B7280',
-              }}
-            >
-              Press <kbd style={{ fontFamily: 'IBM Plex Mono, monospace', backgroundColor: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 4, padding: '1px 5px' }}>Esc</kbd> to close
+            <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.75rem', color: '#94A3B8' }}>
+              Press{' '}
+              <kbd
+                style={{
+                  fontFamily: 'IBM Plex Mono, monospace',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: 4,
+                  padding: '1px 5px',
+                  color: '#CBD5E1',
+                  fontSize: '0.6875rem',
+                }}
+              >
+                Esc
+              </kbd>{' '}
+              to close
             </span>
           )}
         </div>
       </header>
 
-      {/* ── Main content — shifts left when drawer opens ─────────── */}
+      {/* ── Main ────────────────────────────────────────────────────────── */}
       <main
         style={{
-          maxWidth: 1200,
+          maxWidth: 1360,
           margin: '0 auto',
-          padding: '32px 24px',
+          padding: '28px 24px',
           paddingRight: drawerOpen ? `calc(24px + ${DRAWER_WIDTH}px)` : '24px',
           transition: 'padding-right 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
@@ -204,11 +496,11 @@ export default function App() {
           <div
             style={{
               maxWidth: 640,
-              margin: '0 auto',
+              margin: '48px auto 0',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 32,
+              gap: 36,
             }}
           >
             <div style={{ textAlign: 'center' }}>
@@ -217,58 +509,82 @@ export default function App() {
                   fontFamily: 'Sora, sans-serif',
                   fontWeight: 700,
                   fontSize: 'clamp(1.75rem, 5vw, 2.5rem)',
-                  color: '#111827',
-                  margin: '0 0 12px 0',
+                  color: '#0F172A',
+                  margin: '0 0 14px 0',
                   letterSpacing: '-0.03em',
                 }}
               >
                 Import &amp; explore{' '}
-                <span style={{ color: '#0D6E6E' }}>Excel data</span>
+                <span className="gradient-text">Excel data</span>
               </h1>
               <p
                 style={{
                   fontFamily: 'Sora, sans-serif',
-                  color: '#6B7280',
+                  color: '#64748B',
                   fontSize: '1rem',
                   margin: 0,
-                  lineHeight: 1.6,
+                  lineHeight: 1.7,
                 }}
               >
                 Upload any{' '}
-                <code style={{ fontFamily: 'IBM Plex Mono, monospace', backgroundColor: '#F3F4F6', padding: '1px 5px', borderRadius: 4 }}>.xlsx</code>{' '}
+                <code
+                  style={{
+                    fontFamily: 'IBM Plex Mono, monospace',
+                    backgroundColor: '#EEF0F8',
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  .xlsx
+                </code>{' '}
                 or{' '}
-                <code style={{ fontFamily: 'IBM Plex Mono, monospace', backgroundColor: '#F3F4F6', padding: '1px 5px', borderRadius: 4 }}>.xls</code>{' '}
-                file to instantly browse, sort, filter, and search your data.
+                <code
+                  style={{
+                    fontFamily: 'IBM Plex Mono, monospace',
+                    backgroundColor: '#EEF0F8',
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  .xls
+                </code>{' '}
+                file to instantly browse, analyse and explore your projects.
               </p>
             </div>
 
             <FileUpload onFileSelect={handleFileSelect} />
 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-              {['Multi-sheet support', 'Sortable columns', 'Live search', 'Row detail view'].map(
-                (feat) => (
-                  <span
-                    key={feat}
-                    style={{
-                      fontFamily: 'Sora, sans-serif',
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      color: '#374151',
-                      backgroundColor: '#FFFFFF',
-                      border: '1px solid #E5E7EB',
-                      borderRadius: 20,
-                      padding: '4px 12px',
-                    }}
-                  >
-                    {feat}
-                  </span>
-                )
-              )}
+              {[
+                'Multi-sheet support',
+                'Readiness tracking',
+                'Live search',
+                'Sortable columns',
+                'Row detail view',
+              ].map((feat) => (
+                <span
+                  key={feat}
+                  style={{
+                    fontFamily: 'Sora, sans-serif',
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    color: '#4F46E5',
+                    backgroundColor: '#EEF0F8',
+                    border: '1px solid #C7D2FE',
+                    borderRadius: 20,
+                    padding: '4px 12px',
+                  }}
+                >
+                  {feat}
+                </span>
+              ))}
             </div>
           </div>
         )}
 
-        {/* Loading spinner */}
+        {/* Loading */}
         {loading && (
           <div
             style={{
@@ -290,15 +606,15 @@ export default function App() {
               style={{ animation: 'spin 0.8s linear infinite' }}
               aria-hidden="true"
             >
-              <circle cx="20" cy="20" r="16" stroke="#E5E7EB" strokeWidth="4" />
+              <circle cx="20" cy="20" r="16" stroke="#E2E8F0" strokeWidth="4" />
               <path
                 d="M20 4C28.8366 4 36 11.1634 36 20"
-                stroke="#0D6E6E"
+                stroke="#4F46E5"
                 strokeWidth="4"
                 strokeLinecap="round"
               />
             </svg>
-            <p style={{ fontFamily: 'Sora, sans-serif', color: '#6B7280', margin: 0 }}>
+            <p style={{ fontFamily: 'Sora, sans-serif', color: '#64748B', margin: 0 }}>
               Parsing your file…
             </p>
           </div>
@@ -306,64 +622,84 @@ export default function App() {
 
         {/* Data view */}
         {hasData && (
-          <div
-            className="animate-fade-in-up"
-            style={{ display: 'flex', flexDirection: 'column', gap: 20 }}
-          >
+          <div className="animate-fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <ExportSummary
               excelFile={parsedFile}
               activeSheet={activeSheet}
-              totalRows={rows.length}
+              totalRows={projectRows.length}
               totalColumns={headers.length}
+              headers={headers}
+              rows={filteredProjectRows}
               onReset={handleReset}
             />
 
             <div
               style={{
                 backgroundColor: '#FFFFFF',
-                border: '1px solid #E5E7EB',
-                borderRadius: 16,
+                border: '1px solid #E2E0D8',
+                borderRadius: 20,
                 overflow: 'hidden',
+                boxShadow: '0 2px 12px rgba(79,70,229,0.06)',
               }}
             >
-              {/* Card header */}
+              {/* Panel header */}
               <div
                 style={{
-                  padding: '14px 20px',
-                  borderBottom: '1px solid #F3F4F6',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: 12,
+                  borderBottom: '1px solid #E2E0D8',
+                  background: 'linear-gradient(180deg, #FAFBFF 0%, #FFFFFF 100%)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <SheetSelector
-                    sheets={sheets}
-                    activeSheet={activeSheet}
-                    onSelect={setActiveSheet}
-                  />
-                  {sheets.length === 1 && (
-                    <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: '0.9375rem', color: '#111827' }}>
-                      {activeSheet}
+                {/* Top row: sheet selector + count | view toggle */}
+                <div
+                  style={{
+                    padding: '14px 20px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <SheetSelector
+                      sheets={sheets}
+                      activeSheet={activeSheet}
+                      onSelect={setActiveSheet}
+                    />
+                    {sheets.length === 1 && (
+                      <span
+                        style={{
+                          fontFamily: 'Sora, sans-serif',
+                          fontWeight: 600,
+                          fontSize: '0.9375rem',
+                          color: '#0F172A',
+                        }}
+                      >
+                        {activeSheet}
+                      </span>
+                    )}
+                    {/* Row count badge */}
+                    <span
+                      style={{
+                        fontFamily: 'IBM Plex Mono, monospace',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: readinessFilter !== 'all' ? '#4F46E5' : '#64748B',
+                        backgroundColor: readinessFilter !== 'all' ? '#EEF0F8' : '#F3F1EE',
+                        border: `1px solid ${readinessFilter !== 'all' ? '#C7D2FE' : '#E2E0D8'}`,
+                        borderRadius: 20,
+                        padding: '3px 10px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {filteredProjectRows.length.toLocaleString()} project{filteredProjectRows.length !== 1 ? 's' : ''}
                     </span>
-                  )}
-                </div>
+                  </div>
 
-                {/* Right side: hint + view toggle */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {!drawerOpen && (
-                    <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.75rem', color: '#9CA3AF' }}>
-                      Click a record for details →
-                    </span>
-                  )}
-
-                  {/* View mode toggle */}
                   <div
                     style={{
                       display: 'flex',
-                      border: '1.5px solid #E5E7EB',
+                      border: '1.5px solid #E2E0D8',
                       borderRadius: 8,
                       overflow: 'hidden',
                     }}
@@ -373,7 +709,6 @@ export default function App() {
                       onClick={() => setViewMode('cards')}
                       label="Card view"
                     >
-                      {/* Cards icon */}
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                         <rect x="1" y="1" width="5" height="4" rx="1.5" fill="currentColor" />
                         <rect x="8" y="1" width="5" height="4" rx="1.5" fill="currentColor" fillOpacity="0.4" />
@@ -386,7 +721,6 @@ export default function App() {
                       onClick={() => setViewMode('table')}
                       label="Table view"
                     >
-                      {/* Table icon */}
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                         <rect x="1" y="1" width="12" height="3" rx="1" fill="currentColor" />
                         <rect x="1" y="6" width="12" height="2" rx="1" fill="currentColor" fillOpacity="0.4" />
@@ -395,21 +729,38 @@ export default function App() {
                     </ViewToggleBtn>
                   </div>
                 </div>
+
+                {/* Bottom row: readiness filter chips */}
+                {projectRows.length > 0 && (
+                  <div
+                    style={{
+                      padding: '0 20px 12px',
+                      borderTop: '1px solid #F3F1EE',
+                      paddingTop: 10,
+                    }}
+                  >
+                    <FilterBar
+                      active={readinessFilter}
+                      onChange={setReadinessFilter}
+                      counts={filterCounts}
+                    />
+                  </div>
+                )}
               </div>
 
-              {/* Content area */}
-              <div style={{ padding: '16px 20px 20px' }}>
+              {/* Content */}
+              <div style={{ padding: '20px' }}>
                 {viewMode === 'cards' ? (
                   <RecordList
                     headers={headers}
-                    rows={rows}
+                    rows={filteredProjectRows}
                     selectedRow={selectedRow}
                     onRowClick={handleRowClick}
                   />
                 ) : (
                   <DataTable
                     headers={headers}
-                    rows={rows}
+                    rows={filteredProjectRows}
                     selectedRow={selectedRow}
                     onRowClick={handleRowClick}
                   />
@@ -420,7 +771,7 @@ export default function App() {
         )}
       </main>
 
-      {/* ── Row detail drawer ─────────────────────────────────────── */}
+      {/* ── Row detail drawer ──────────────────────────────────────────── */}
       <RowDrawer
         row={selectedRow}
         headers={headers}
@@ -428,7 +779,16 @@ export default function App() {
         onClose={handleDrawerClose}
       />
 
-      {/* ── Toast container ───────────────────────────────────────── */}
+      {/* ── Upload preview modal ──────────────────────────────────────── */}
+      {pendingFile && (
+        <UploadPreview
+          file={pendingFile}
+          onConfirm={handlePreviewConfirm}
+          onCancel={handlePreviewCancel}
+        />
+      )}
+
+      {/* ── Toast container ────────────────────────────────────────────── */}
       <div
         aria-live="assertive"
         aria-atomic="false"
@@ -449,8 +809,8 @@ export default function App() {
             role="alert"
             className="animate-slide-in-right"
             style={{
-              backgroundColor: toast.type === 'error' ? '#FEF2F2' : '#EBF5F5',
-              border: `1px solid ${toast.type === 'error' ? '#FECACA' : '#C6E4E4'}`,
+              backgroundColor: toast.type === 'error' ? '#FEF2F2' : '#FFFFFF',
+              border: `1px solid ${toast.type === 'error' ? '#FECACA' : '#C7D2FE'}`,
               borderRadius: 10,
               padding: '12px 16px',
               display: 'flex',
@@ -458,42 +818,83 @@ export default function App() {
               gap: 10,
               maxWidth: 360,
               pointerEvents: 'auto',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
             }}
           >
             {toast.type === 'error' ? (
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0 }} aria-hidden="true">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 18 18"
+                fill="none"
+                style={{ flexShrink: 0 }}
+                aria-hidden="true"
+              >
                 <circle cx="9" cy="9" r="8" stroke="#DC2626" strokeWidth="1.5" />
                 <path d="M9 5.5V9.5M9 12.5V12" stroke="#DC2626" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             ) : (
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0 }} aria-hidden="true">
-                <circle cx="9" cy="9" r="8" stroke="#0D6E6E" strokeWidth="1.5" />
-                <path d="M5.5 9L7.5 11L12.5 6.5" stroke="#0D6E6E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 18 18"
+                fill="none"
+                style={{ flexShrink: 0 }}
+                aria-hidden="true"
+              >
+                <circle cx="9" cy="9" r="8" stroke="#4F46E5" strokeWidth="1.5" />
+                <path
+                  d="M5.5 9L7.5 11L12.5 6.5"
+                  stroke="#4F46E5"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             )}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: '0.8125rem', color: toast.type === 'error' ? '#991B1B' : '#095555', margin: 0 }}>
+              <p
+                style={{
+                  fontFamily: 'Sora, sans-serif',
+                  fontWeight: 600,
+                  fontSize: '0.8125rem',
+                  color: toast.type === 'error' ? '#DC2626' : '#4F46E5',
+                  margin: 0,
+                }}
+              >
                 {toast.type === 'error' ? 'Parse Error' : 'Info'}
               </p>
-              <p style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem', color: toast.type === 'error' ? '#7F1D1D' : '#0D6E6E', margin: '2px 0 0 0', wordBreak: 'break-word' }}>
+              <p
+                style={{
+                  fontFamily: 'Sora, sans-serif',
+                  fontSize: '0.8125rem',
+                  color: toast.type === 'error' ? '#7F1D1D' : '#6366F1',
+                  margin: '2px 0 0 0',
+                  wordBreak: 'break-word',
+                }}
+              >
                 {toast.message}
               </p>
             </div>
             <button
               onClick={() => dismissToast(toast.id)}
-              aria-label="Dismiss notification"
-              style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: toast.type === 'error' ? '#DC2626' : '#0D6E6E', padding: 2, flexShrink: 0, lineHeight: 1, fontSize: '1rem' }}
+              aria-label="Dismiss"
+              style={{
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                color: toast.type === 'error' ? '#DC2626' : '#4F46E5',
+                padding: 2,
+                flexShrink: 0,
+                lineHeight: 1,
+                fontSize: '1rem',
+              }}
             >
               ×
             </button>
           </div>
         ))}
       </div>
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   );
 }

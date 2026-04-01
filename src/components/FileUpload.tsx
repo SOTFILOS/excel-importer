@@ -88,7 +88,7 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && openPicker()}
         style={{
           backgroundColor: isDragging ? '#EBF5F5' : '#FFFFFF',
-          borderColor: isDragging ? '#0D6E6E' : '#D1D5DB',
+          borderColor: isDragging ? '#0D9488' : '#E2E0D8',
           borderWidth: 2,
           borderStyle: 'dashed',
           transform: isDragging ? 'scale(1.01)' : 'scale(1)',
@@ -100,7 +100,7 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
         {/* Icon */}
         <div
           style={{
-            backgroundColor: isDragging ? '#C6E4E4' : '#F3F4F6',
+            backgroundColor: isDragging ? '#C6E4E4' : '#EEF0F8',
             transition: 'background-color 0.2s ease',
           }}
           className="w-16 h-16 rounded-2xl flex items-center justify-center"
@@ -113,10 +113,10 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
             xmlns="http://www.w3.org/2000/svg"
             aria-hidden="true"
           >
-            <rect width="32" height="32" rx="8" fill={isDragging ? '#0D6E6E' : '#E5E7EB'} />
+            <rect width="32" height="32" rx="8" fill={isDragging ? '#0D9488' : '#E2E0D8'} />
             <path
               d="M10 22h12M16 10v10M12 14l4-4 4 4"
-              stroke={isDragging ? '#FFFFFF' : '#6B7280'}
+              stroke={isDragging ? '#0B1437' : '#64748B'}
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -126,16 +126,16 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
 
         {/* Text */}
         <div className="text-center">
-          <p style={{ fontFamily: 'Sora, sans-serif', color: '#111827', fontWeight: 600, fontSize: '1rem' }}>
+          <p style={{ fontFamily: 'Sora, sans-serif', color: '#0F172A', fontWeight: 600, fontSize: '1rem' }}>
             {isDragging ? 'Release to upload' : 'Drop your Excel file here'}
           </p>
-          <p style={{ fontFamily: 'Sora, sans-serif', color: '#6B7280', fontSize: '0.875rem', marginTop: 4 }}>
+          <p style={{ fontFamily: 'Sora, sans-serif', color: '#64748B', fontSize: '0.875rem', marginTop: 4 }}>
             or{' '}
-            <span style={{ color: '#0D6E6E', fontWeight: 600 }}>
+            <span style={{ color: '#0D9488', fontWeight: 600 }}>
               click to browse
             </span>
           </p>
-          <p style={{ fontFamily: 'Sora, sans-serif', color: '#9CA3AF', fontSize: '0.75rem', marginTop: 8 }}>
+          <p style={{ fontFamily: 'Sora, sans-serif', color: '#94A3B8', fontSize: '0.75rem', marginTop: 8 }}>
             Supports .xlsx and .xls files
           </p>
         </div>
@@ -188,13 +188,13 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
             <path
               d="M4 3C4 2.44772 4.44772 2 5 2H12L16 6V17C16 17.5523 15.5523 18 15 18H5C4.44772 18 4 17.5523 4 17V3Z"
-              fill="#0D6E6E"
+              fill="#0D9488"
               fillOpacity="0.15"
-              stroke="#0D6E6E"
+              stroke="#0D9488"
               strokeWidth="1.5"
             />
-            <path d="M12 2V6H16" stroke="#0D6E6E" strokeWidth="1.5" strokeLinejoin="round" />
-            <path d="M7 10H13M7 13H11" stroke="#0D6E6E" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M12 2V6H16" stroke="#0D9488" strokeWidth="1.5" strokeLinejoin="round" />
+            <path d="M7 10H13M7 13H11" stroke="#0D9488" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
 
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -203,7 +203,7 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
                 fontFamily: 'Sora, sans-serif',
                 fontWeight: 600,
                 fontSize: '0.8125rem',
-                color: '#095555',
+                color: '#0F172A',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -211,14 +211,14 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
             >
               {selectedFile.name}
             </p>
-            <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.75rem', color: '#128080' }}>
+            <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.75rem', color: '#0D9488' }}>
               {formatBytes(selectedFile.size)}
             </p>
           </div>
 
           {/* Checkmark */}
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-            <circle cx="9" cy="9" r="9" fill="#0D6E6E" />
+            <circle cx="9" cy="9" r="9" fill="#0D9488" />
             <path d="M5.5 9L7.5 11L12.5 6.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
