@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import FileUpload from './components/FileUpload';
 import SheetSelector from './components/SheetSelector';
 import DataTable from './components/DataTable';
 import RecordList from './components/RecordList';
@@ -7,6 +6,7 @@ import ExportSummary from './components/ExportSummary';
 import RowDrawer from './components/RowDrawer';
 import UploadPreview from './components/UploadPreview';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
+import LandingPage from './components/LandingPage';
 import { useExcelParser } from './hooks/useExcelParser';
 import { cellStr } from './utils/fieldCategoriser';
 import { enrichRows, getUniquePMs } from './utils/projectAnalytics';
@@ -550,95 +550,7 @@ export default function App() {
       >
         {/* Upload screen */}
         {!hasData && !loading && (
-          <div
-            style={{
-              maxWidth: 640,
-              margin: '48px auto 0',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 36,
-            }}
-          >
-            <div style={{ textAlign: 'center' }}>
-              <h1
-                style={{
-                  fontFamily: 'Sora, sans-serif',
-                  fontWeight: 700,
-                  fontSize: 'clamp(1.75rem, 5vw, 2.5rem)',
-                  color: '#0F172A',
-                  margin: '0 0 14px 0',
-                  letterSpacing: '-0.03em',
-                }}
-              >
-                Import &amp; explore{' '}
-                <span className="gradient-text">Excel data</span>
-              </h1>
-              <p
-                style={{
-                  fontFamily: 'Sora, sans-serif',
-                  color: '#64748B',
-                  fontSize: '1rem',
-                  margin: 0,
-                  lineHeight: 1.7,
-                }}
-              >
-                Upload any{' '}
-                <code
-                  style={{
-                    fontFamily: 'IBM Plex Mono, monospace',
-                    backgroundColor: '#EEF0F8',
-                    padding: '2px 6px',
-                    borderRadius: 4,
-                    fontSize: '0.875rem',
-                  }}
-                >
-                  .xlsx
-                </code>{' '}
-                or{' '}
-                <code
-                  style={{
-                    fontFamily: 'IBM Plex Mono, monospace',
-                    backgroundColor: '#EEF0F8',
-                    padding: '2px 6px',
-                    borderRadius: 4,
-                    fontSize: '0.875rem',
-                  }}
-                >
-                  .xls
-                </code>{' '}
-                file to instantly browse, analyse and explore your projects.
-              </p>
-            </div>
-
-            <FileUpload onFileSelect={handleFileSelect} />
-
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-              {[
-                'Multi-sheet support',
-                'Readiness tracking',
-                'Live search',
-                'Sortable columns',
-                'Row detail view',
-              ].map((feat) => (
-                <span
-                  key={feat}
-                  style={{
-                    fontFamily: 'Sora, sans-serif',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    color: '#4F46E5',
-                    backgroundColor: '#EEF0F8',
-                    border: '1px solid #C7D2FE',
-                    borderRadius: 20,
-                    padding: '4px 12px',
-                  }}
-                >
-                  {feat}
-                </span>
-              ))}
-            </div>
-          </div>
+          <LandingPage onFileSelect={handleFileSelect} />
         )}
 
         {/* Loading */}
