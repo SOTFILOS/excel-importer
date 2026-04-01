@@ -1,4 +1,4 @@
-climport { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 
 interface UploadPreviewProps {
