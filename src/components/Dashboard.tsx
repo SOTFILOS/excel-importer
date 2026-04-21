@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { readinessPct, readinessBucket, ReadinessBucket } from '../utils/constants';
+import { readinessPct, readinessBucket } from '../utils/constants';
+import type { ReadinessBucket } from '../utils/constants';
 import { cellStr } from '../utils/fieldCategoriser';
 
 interface DashboardProps {

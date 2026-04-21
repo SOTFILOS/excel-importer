@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { buildCardContent } from '../utils/fieldCategoriser';
-import { readinessPct, readinessBucket, ReadinessBucket } from '../utils/constants';
+import { readinessPct, readinessBucket } from '../utils/constants';
+import type { ReadinessBucket } from '../utils/constants';
 
 interface KanbanBoardProps {
   headers: string[];
