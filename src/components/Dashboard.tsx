@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { readinessPct, readinessBucket, ReadinessBucket } from '../utils/constants';
+import { cellStr } from '../utils/fieldCategoriser';
 
 interface DashboardProps {
   headers: string[];
@@ -6,7 +8,7 @@ interface DashboardProps {
   onRowClick: (row: Record<string, unknown>) => void;
 }
 
-type Bucket = 'on-track' | 'good' | 'attention' | 'at-risk' | 'no-data';
+type Bucket = ReadinessBucket;
 
 interface ProjectStat {
   title: string;
@@ -29,11 +31,7 @@ interface Analytics {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function cellStr(v: unknown): string {
-  if (v == null) return '';
-  if (typeof v === 'object') return JSON.stringify(v);
-  return String(v);
-}
+/** cellStr centralized in ../utils/fieldCategoriser */
 
 function inferTitle(headers: string[], row: Record<string, unknown>): string {
   for (const h of headers) {
@@ -53,21 +51,11 @@ function inferId(headers: string[], row: Record<string, unknown>): string {
 }
 
 function computeReadiness(headers: string[], row: Record<string, unknown>): number | null {
-  let yes = 0, no = 0;
-  for (const h of headers) {
-    const v = cellStr(row[h]).trim().toUpperCase();
-    if (v === 'Y' || v === 'YES') yes++;
-    else if (v === 'N' || v === 'NO') no++;
-  }
-  return yes + no > 0 ? Math.round((yes / (yes + no)) * 100) : null;
+  return readinessPct(headers, row);
 }
 
 function getBucket(pct: number | null): Bucket {
-  if (pct === null) return 'no-data';
-  if (pct >= 70) return 'on-track';
-  if (pct >= 50) return 'good';
-  if (pct >= 30) return 'attention';
-  return 'at-risk';
+  return readinessBucket(pct);
 }
 
 function computeAnalytics(headers: string[], rows: Record<string, unknown>[]): Analytics {
@@ -130,7 +118,7 @@ function KPICard({
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <span style={{
-          fontFamily: 'Sora, sans-serif', fontSize: '0.6875rem', fontWeight: 600,
+          fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.6875rem', fontWeight: 600,
           color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.07em',
         }}>
           {label}
@@ -144,13 +132,13 @@ function KPICard({
         </div>
       </div>
       <span style={{
-        fontFamily: 'IBM Plex Mono, monospace', fontSize: '2rem', fontWeight: 700,
+        fontFamily: 'JetBrains Mono, monospace', fontSize: '2rem', fontWeight: 700,
         color: '#0F172A', lineHeight: 1,
       }}>
         {value}
       </span>
       {subLabel && (
-        <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.75rem', color: '#94A3B8' }}>
+        <span style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.75rem', color: '#94A3B8' }}>
           {subLabel}
         </span>
       )}
@@ -196,7 +184,7 @@ function StatusDonut({ a }: { a: Analytics }) {
       padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
     }}>
       <p style={{
-        fontFamily: 'Sora, sans-serif', fontSize: '0.75rem', fontWeight: 700,
+        fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.75rem', fontWeight: 700,
         textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94A3B8', margin: '0 0 16px 0',
       }}>
         Status Distribution
@@ -222,20 +210,20 @@ function StatusDonut({ a }: { a: Analytics }) {
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           }}>
             <span style={{
-              fontFamily: 'IBM Plex Mono, monospace', fontSize: '1.5rem', fontWeight: 700,
+              fontFamily: 'JetBrains Mono, monospace', fontSize: '1.5rem', fontWeight: 700,
               color: '#0F172A', lineHeight: 1,
             }}>
               {a.total}
             </span>
             <span style={{
-              fontFamily: 'Sora, sans-serif', fontSize: '0.5625rem', color: '#94A3B8',
+              fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.5625rem', color: '#94A3B8',
               textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 3,
             }}>
               projects
             </span>
             {a.avgReadiness !== null && (
               <span style={{
-                fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.875rem', fontWeight: 700,
+                fontFamily: 'JetBrains Mono, monospace', fontSize: '0.875rem', fontWeight: 700,
                 color: avgColor, marginTop: 4,
               }}>
                 {a.avgReadiness}% avg
@@ -258,15 +246,15 @@ function StatusDonut({ a }: { a: Analytics }) {
             return (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: cfg.color, flexShrink: 0 }} />
-                <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem', color: '#374151', flex: 1 }}>
+                <span style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.8125rem', color: '#374151', flex: 1 }}>
                   {cfg.label}
                 </span>
                 <span style={{
-                  fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.75rem', fontWeight: 700, color: cfg.color,
+                  fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 700, color: cfg.color,
                 }}>
                   {count}
                 </span>
-                <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.6875rem', color: '#CBD5E1', minWidth: 32 }}>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: '#CBD5E1', minWidth: 32 }}>
                   {pct}%
                 </span>
               </div>
@@ -297,7 +285,7 @@ function HealthBarChart({ a }: { a: Analytics }) {
       padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
     }}>
       <p style={{
-        fontFamily: 'Sora, sans-serif', fontSize: '0.75rem', fontWeight: 700,
+        fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.75rem', fontWeight: 700,
         textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94A3B8', margin: '0 0 20px 0',
       }}>
         Health Score Distribution
@@ -309,15 +297,15 @@ function HealthBarChart({ a }: { a: Analytics }) {
             <div key={bar.label}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                  <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem', fontWeight: 600, color: '#374151' }}>
+                  <span style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.8125rem', fontWeight: 600, color: '#374151' }}>
                     {bar.label}
                   </span>
-                  <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.6875rem', color: '#94A3B8' }}>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: '#94A3B8' }}>
                     {bar.sublabel}
                   </span>
                 </div>
                 <span style={{
-                  fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.8125rem', fontWeight: 700, color: bar.color,
+                  fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8125rem', fontWeight: 700, color: bar.color,
                 }}>
                   {bar.count}
                 </span>
@@ -376,10 +364,10 @@ function NeedsAttentionPanel({
           </svg>
         </div>
         <div>
-          <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.875rem', color: '#0F172A', margin: 0 }}>
+          <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontWeight: 700, fontSize: '0.875rem', color: '#0F172A', margin: 0 }}>
             Projects Needing Attention
           </p>
-          <p style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.75rem', color: '#94A3B8', margin: 0 }}>
+          <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.75rem', color: '#94A3B8', margin: 0 }}>
             {flagged.length} project{flagged.length !== 1 ? 's' : ''} below 50% readiness
           </p>
         </div>
@@ -387,7 +375,7 @@ function NeedsAttentionPanel({
 
       {/* Table */}
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.8125rem' }}>
           <thead>
             <tr style={{ backgroundColor: '#F9F8F6', borderBottom: '1px solid #E2E0D8' }}>
               {['Project', 'Status', 'Readiness', 'Score'].map(h => (
@@ -418,13 +406,13 @@ function NeedsAttentionPanel({
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {p.id && (
                         <span style={{
-                          fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.625rem', fontWeight: 700,
+                          fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 700,
                           color: cfg.color, backgroundColor: cfg.lightBg,
                           border: `1px solid ${cfg.color}30`, borderRadius: 4, padding: '1px 6px', flexShrink: 0,
                         }}>#{p.id}</span>
                       )}
                       <span style={{
-                        fontFamily: 'Sora, sans-serif', fontWeight: 600, color: '#0F172A',
+                        fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontWeight: 600, color: '#0F172A',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>
                         {p.title}
@@ -455,7 +443,7 @@ function NeedsAttentionPanel({
                   {/* Score */}
                   <td style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}>
                     <span style={{
-                      fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.875rem', fontWeight: 700, color: cfg.color,
+                      fontFamily: 'JetBrains Mono, monospace', fontSize: '0.875rem', fontWeight: 700, color: cfg.color,
                     }}>
                       {p.pct !== null ? `${p.pct}%` : '—'}
                     </span>
@@ -500,10 +488,10 @@ function OnTrackPanel({ a, onRowClick }: { a: Analytics; onRowClick: (row: Recor
           </svg>
         </div>
         <div>
-          <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.875rem', color: '#0F172A', margin: 0 }}>
+          <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontWeight: 700, fontSize: '0.875rem', color: '#0F172A', margin: 0 }}>
             Top Performers
           </p>
-          <p style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.75rem', color: '#94A3B8', margin: 0 }}>
+          <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.75rem', color: '#94A3B8', margin: 0 }}>
             Highest readiness scores
           </p>
         </div>
@@ -521,11 +509,11 @@ function OnTrackPanel({ a, onRowClick }: { a: Analytics; onRowClick: (row: Recor
             onMouseLeave={e => ((e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent')}
           >
             <span style={{
-              fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.6875rem', fontWeight: 700,
+              fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700,
               color: '#94A3B8', width: 16, textAlign: 'right', flexShrink: 0,
             }}>{i + 1}</span>
             <span style={{
-              fontFamily: 'Sora, sans-serif', fontSize: '0.875rem', fontWeight: 600,
+              fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.875rem', fontWeight: 600,
               color: '#0F172A', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {p.title}
@@ -535,7 +523,7 @@ function OnTrackPanel({ a, onRowClick }: { a: Analytics; onRowClick: (row: Recor
                 <div style={{ height: '100%', width: `${p.pct ?? 0}%`, backgroundColor: '#22C55E', borderRadius: 99 }} />
               </div>
               <span style={{
-                fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.75rem', fontWeight: 700, color: '#22C55E', minWidth: 32,
+                fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 700, color: '#22C55E', minWidth: 32,
               }}>
                 {p.pct}%
               </span>
@@ -556,10 +544,10 @@ function EmptyDashboard() {
         <rect width="56" height="56" rx="16" fill="#EEF0F8" />
         <path d="M14 38V28M22 38V20M30 38V24M38 38V14" stroke="#C7D2FE" strokeWidth="2.5" strokeLinecap="round" />
       </svg>
-      <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 600, color: '#64748B', margin: 0 }}>
+      <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontWeight: 600, color: '#64748B', margin: 0 }}>
         No data to analyse
       </p>
-      <p style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.875rem', color: '#94A3B8', margin: 0 }}>
+      <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.875rem', color: '#94A3B8', margin: 0 }}>
         Import an Excel file to see the dashboard
       </p>
     </div>
@@ -599,16 +587,16 @@ export default function Dashboard({ headers, rows, onRowClick }: DashboardProps)
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
           <span style={{
-            fontFamily: 'IBM Plex Mono, monospace', fontSize: '1.25rem', fontWeight: 700,
+            fontFamily: 'JetBrains Mono, monospace', fontSize: '1.25rem', fontWeight: 700,
             color: a.avgReadiness >= 70 ? '#15803D' : a.avgReadiness >= 50 ? '#0F766E' : a.avgReadiness >= 30 ? '#B45309' : '#DC2626',
           }}>
             {a.avgReadiness}%
           </span>
           <div>
-            <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.875rem', color: '#0F172A', margin: 0 }}>
+            <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontWeight: 700, fontSize: '0.875rem', color: '#0F172A', margin: 0 }}>
               {healthLabel}
             </p>
-            <p style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.75rem', color: '#64748B', margin: 0 }}>
+            <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.75rem', color: '#64748B', margin: 0 }}>
               Average readiness across {a.total} projects
             </p>
           </div>

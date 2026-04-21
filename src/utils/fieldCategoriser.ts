@@ -83,7 +83,8 @@ const DEFAULT_COLOR: PaletteColor = PALETTE[0];
 
 export function buildCardContent(
   headers: string[],
-  row: Record<string, unknown>
+  row: Record<string, unknown>,
+  hiddenFields?: Set<string>
 ): CardContent {
   let id = '';
   let title = '';
@@ -95,6 +96,7 @@ export function buildCardContent(
   const links: Array<{ label: string; url: string }> = [];
 
   for (const h of headers) {
+    if (hiddenFields?.has(h)) continue;
     const raw = row[h];
     const s = cellStr(raw).trim();
     const cl = cleanLabel(h);

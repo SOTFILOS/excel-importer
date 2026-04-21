@@ -126,16 +126,16 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
 
         {/* Text */}
         <div className="text-center">
-          <p style={{ fontFamily: 'Sora, sans-serif', color: '#0F172A', fontWeight: 600, fontSize: '1rem' }}>
+          <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', color: '#0F172A', fontWeight: 600, fontSize: '1rem' }}>
             {isDragging ? 'Release to upload' : 'Drop your Excel file here'}
           </p>
-          <p style={{ fontFamily: 'Sora, sans-serif', color: '#64748B', fontSize: '0.875rem', marginTop: 4 }}>
+          <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', color: '#64748B', fontSize: '0.875rem', marginTop: 4 }}>
             or{' '}
             <span style={{ color: '#0D9488', fontWeight: 600 }}>
               click to browse
             </span>
           </p>
-          <p style={{ fontFamily: 'Sora, sans-serif', color: '#94A3B8', fontSize: '0.75rem', marginTop: 8 }}>
+          <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', color: '#94A3B8', fontSize: '0.75rem', marginTop: 8 }}>
             Supports .xlsx and .xls files
           </p>
         </div>
@@ -158,7 +158,7 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
           role="alert"
           style={{
             color: '#DC2626',
-            fontFamily: 'Sora, sans-serif',
+            fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
             fontSize: '0.8125rem',
             marginTop: 8,
             textAlign: 'center',
@@ -200,7 +200,7 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <p
               style={{
-                fontFamily: 'Sora, sans-serif',
+                fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                 fontWeight: 600,
                 fontSize: '0.8125rem',
                 color: '#0F172A',
@@ -211,7 +211,7 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
             >
               {selectedFile.name}
             </p>
-            <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.75rem', color: '#0D9488' }}>
+            <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: '#0D9488' }}>
               {formatBytes(selectedFile.size)}
             </p>
           </div>

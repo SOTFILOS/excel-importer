@@ -96,7 +96,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p
       style={{
-        fontFamily: 'Sora, sans-serif',
+        fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
         fontWeight: 700,
         fontSize: '0.6875rem',
         textTransform: 'uppercase',
@@ -129,7 +129,7 @@ function KvRow({ header, value }: { header: string; value: unknown }) {
     >
       <span
         style={{
-          fontFamily: 'Sora, sans-serif',
+          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
           fontSize: '0.75rem',
           color: '#94A3B8',
           whiteSpace: 'nowrap',
@@ -143,7 +143,7 @@ function KvRow({ header, value }: { header: string; value: unknown }) {
       </span>
       <span
         style={{
-          fontFamily: isLong ? 'Sora, sans-serif' : 'IBM Plex Mono, monospace',
+          fontFamily: isLong ? 'Roboto, Arial, Helvetica, sans-serif' : 'JetBrains Mono, monospace',
           fontSize: '0.8125rem',
           color: '#0F172A',
           fontWeight: 500,
@@ -168,7 +168,7 @@ function SystemChip({ label }: { label: string }) {
         border: '1.5px solid #C6E4E4',
         borderRadius: 8,
         padding: '4px 10px',
-        fontFamily: 'Sora, sans-serif',
+        fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
         fontSize: '0.75rem',
         fontWeight: 600,
         color: '#0D9488',
@@ -197,7 +197,7 @@ function StatusRow({ header, kind }: { header: string; kind: 'yes' | 'no' }) {
     >
       <span
         style={{
-          fontFamily: 'Sora, sans-serif',
+          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
           fontSize: '0.8125rem',
           color: '#1F2937',
         }}
@@ -209,7 +209,7 @@ function StatusRow({ header, kind }: { header: string; kind: 'yes' | 'no' }) {
           display: 'inline-flex',
           alignItems: 'center',
           gap: 5,
-          fontFamily: 'Sora, sans-serif',
+          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
           fontSize: '0.75rem',
           fontWeight: 600,
           color: isYes ? '#16A34A' : '#C2410C',
@@ -299,7 +299,7 @@ function StatusDonut({ yesCount, noCount }: { yesCount: number; noCount: number 
         >
           <span
             style={{
-              fontFamily: 'IBM Plex Mono, monospace',
+              fontFamily: 'JetBrains Mono, monospace',
               fontSize: '0.9375rem',
               fontWeight: 700,
               color: '#0F172A',
@@ -310,7 +310,7 @@ function StatusDonut({ yesCount, noCount }: { yesCount: number; noCount: number 
           </span>
           <span
             style={{
-              fontFamily: 'Sora, sans-serif',
+              fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
               fontSize: '0.5625rem',
               color: '#94A3B8',
               textTransform: 'uppercase',
@@ -326,7 +326,7 @@ function StatusDonut({ yesCount, noCount }: { yesCount: number; noCount: number 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <p
           style={{
-            fontFamily: 'Sora, sans-serif',
+            fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
             fontSize: '0.625rem',
             fontWeight: 700,
             textTransform: 'uppercase',
@@ -348,7 +348,7 @@ function StatusDonut({ yesCount, noCount }: { yesCount: number; noCount: number 
             }}
           />
           <span
-            style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem', color: '#1F2937' }}
+            style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.8125rem', color: '#1F2937' }}
           >
             Supported{' '}
             <strong style={{ color: '#16A34A' }}>{yesCount}</strong>
@@ -365,7 +365,7 @@ function StatusDonut({ yesCount, noCount }: { yesCount: number; noCount: number 
             }}
           />
           <span
-            style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem', color: '#1F2937' }}
+            style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.8125rem', color: '#1F2937' }}
           >
             Missing{' '}
             <strong style={{ color: '#C2410C' }}>{noCount}</strong>
@@ -404,7 +404,7 @@ function UrlCard({ header, value }: { header: string; value: unknown }) {
         (e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#FAFBFF';
       }}
     >
-      <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem', fontWeight: 500, color: '#0D9488' }}>
+      <span style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.8125rem', fontWeight: 500, color: '#0D9488' }}>
         {cleanLabel(header)}
       </span>
       <span
@@ -412,7 +412,7 @@ function UrlCard({ header, value }: { header: string; value: unknown }) {
           display: 'inline-flex',
           alignItems: 'center',
           gap: 4,
-          fontFamily: 'Sora, sans-serif',
+          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
           fontSize: '0.75rem',
           color: '#0D9488',
           backgroundColor: '#EBF5F5',
@@ -501,7 +501,7 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                   {sections.id && (
                     <span
                       style={{
-                        fontFamily: 'IBM Plex Mono, monospace',
+                        fontFamily: 'JetBrains Mono, monospace',
                         fontSize: '0.75rem',
                         fontWeight: 600,
                         color: '#FFFFFF',
@@ -517,7 +517,7 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                   {sections.activeSystems.length > 0 && (
                     <span
                       style={{
-                        fontFamily: 'Sora, sans-serif',
+                        fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                         fontSize: '0.6875rem',
                         fontWeight: 600,
                         color: '#0D9488',
@@ -567,7 +567,7 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
               {/* Title */}
               <h2
                 style={{
-                  fontFamily: 'Sora, sans-serif',
+                  fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                   fontWeight: 700,
                   fontSize: '1.0625rem',
                   color: '#0F172A',
@@ -612,7 +612,7 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                   <Divider />
                   <p
                     style={{
-                      fontFamily: 'Sora, sans-serif',
+                      fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                       fontSize: '0.8125rem',
                       color: '#94A3B8',
                       fontStyle: 'italic',
@@ -659,7 +659,7 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                 sections.activeSystems.length === 0 &&
                 sections.statusItems.length === 0 &&
                 sections.urlItems.length === 0 && (
-                  <p style={{ fontFamily: 'Sora, sans-serif', color: '#94A3B8', textAlign: 'center', paddingTop: 40 }}>
+                  <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', color: '#94A3B8', textAlign: 'center', paddingTop: 40 }}>
                     No data for this row.
                   </p>
                 )}

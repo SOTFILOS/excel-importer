@@ -111,10 +111,10 @@ export default function UploadPreview({ file, onConfirm, onCancel }: UploadPrevi
               </svg>
             </div>
             <div>
-              <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1rem', color: '#0F172A', margin: 0 }}>
+              <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontWeight: 700, fontSize: '1rem', color: '#0F172A', margin: 0 }}>
                 Preview before importing
               </p>
-              <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.75rem', color: '#94A3B8', margin: 0 }}>
+              <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: '#94A3B8', margin: 0 }}>
                 {file.name} · {formatBytes(file.size)}
               </p>
             </div>
@@ -145,7 +145,7 @@ export default function UploadPreview({ file, onConfirm, onCancel }: UploadPrevi
           )}
 
           {error && (
-            <p style={{ fontFamily: 'Sora, sans-serif', color: '#DC2626', textAlign: 'center', padding: '40px 0' }}>{error}</p>
+            <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', color: '#DC2626', textAlign: 'center', padding: '40px 0' }}>{error}</p>
           )}
 
           {!loading && !error && previews && (
@@ -158,7 +158,7 @@ export default function UploadPreview({ file, onConfirm, onCancel }: UploadPrevi
                       key={p.name}
                       onClick={() => setActiveSheet(i)}
                       style={{
-                        fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem',
+                        fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.8125rem',
                         fontWeight: activeSheet === i ? 600 : 400,
                         color: activeSheet === i ? '#0B1437' : '#64748B',
                         backgroundColor: activeSheet === i ? '#0D9488' : '#FFFFFF',
@@ -168,7 +168,7 @@ export default function UploadPreview({ file, onConfirm, onCancel }: UploadPrevi
                     >
                       {p.name}
                       <span style={{
-                        fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.6875rem',
+                        fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem',
                         marginLeft: 6, color: activeSheet === i ? 'rgba(255,255,255,0.7)' : '#94A3B8',
                       }}>
                         {p.totalRows}
@@ -187,11 +187,11 @@ export default function UploadPreview({ file, onConfirm, onCancel }: UploadPrevi
                     { label: 'Showing', value: `first ${Math.min(5, current.rows.length)}` },
                   ].map(({ label, value }) => (
                     <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.6875rem', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                      <span style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.6875rem', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
                         {label}
                       </span>
                       <span style={{
-                        fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.8125rem', fontWeight: 600,
+                        fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8125rem', fontWeight: 600,
                         color: '#0F172A', backgroundColor: '#F3F1EE', border: '1px solid #E2E0D8',
                         borderRadius: 6, padding: '2px 9px',
                       }}>
@@ -205,13 +205,13 @@ export default function UploadPreview({ file, onConfirm, onCancel }: UploadPrevi
               {/* Preview table */}
               {current && current.rows.length > 0 ? (
                 <div style={{ overflowX: 'auto', border: '1px solid #E2E0D8', borderRadius: 12 }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.75rem' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#F3F1EE', borderBottom: '2px solid #E2E0D8' }}>
                         {current.headers.map((h) => (
                           <th key={h} style={{
                             padding: '9px 14px', textAlign: 'left',
-                            fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: '0.6875rem',
+                            fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontWeight: 600, fontSize: '0.6875rem',
                             color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em',
                             whiteSpace: 'nowrap', borderRight: '1px solid #E2E0D8',
                           }}>
@@ -238,7 +238,7 @@ export default function UploadPreview({ file, onConfirm, onCancel }: UploadPrevi
                   </table>
                 </div>
               ) : (
-                <p style={{ fontFamily: 'Sora, sans-serif', color: '#94A3B8', textAlign: 'center', padding: '32px 0' }}>
+                <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', color: '#94A3B8', textAlign: 'center', padding: '32px 0' }}>
                   This sheet appears to be empty.
                 </p>
               )}
@@ -255,7 +255,7 @@ export default function UploadPreview({ file, onConfirm, onCancel }: UploadPrevi
           <button
             onClick={onCancel}
             style={{
-              fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: '0.875rem',
+              fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontWeight: 600, fontSize: '0.875rem',
               color: '#64748B', backgroundColor: '#FFFFFF',
               border: '1.5px solid #E2E0D8', borderRadius: 10,
               padding: '9px 20px', cursor: 'pointer', transition: 'all 0.15s',
@@ -267,7 +267,7 @@ export default function UploadPreview({ file, onConfirm, onCancel }: UploadPrevi
             onClick={() => onConfirm(file)}
             disabled={loading || !!error}
             style={{
-              fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: '0.875rem',
+              fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontWeight: 600, fontSize: '0.875rem',
               color: '#FFFFFF', background: 'linear-gradient(135deg, #4F46E5 0%, #4338CA 100%)',
               border: 'none', borderRadius: 10, padding: '9px 24px',
               cursor: loading || !!error ? 'not-allowed' : 'pointer',

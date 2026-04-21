@@ -11,12 +11,32 @@ interface ExportSummaryProps {
   rows: Record<string, unknown>[];
   enrichedRows: EnrichedRow[];
   onReset: () => void;
+
+  // New optional validation/meta props
+  validCount?: number;
+  errorCount?: number;
+  importDate?: Date | null;
 }
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function formatDateTime(d: Date | null | undefined): string {
+  if (!d) return '—';
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(d);
+  } catch {
+    return d.toLocaleString();
+  }
 }
 
 function exportCSV(
@@ -50,7 +70,7 @@ function MetaChip({ label, value }: { label: string; value: string | number }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <span
         style={{
-          fontFamily: 'Sora, sans-serif',
+          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
           fontSize: '0.6875rem',
           fontWeight: 600,
           color: '#94A3B8',
@@ -62,7 +82,7 @@ function MetaChip({ label, value }: { label: string; value: string | number }) {
       </span>
       <span
         style={{
-          fontFamily: 'IBM Plex Mono, monospace',
+          fontFamily: 'JetBrains Mono, monospace',
           fontSize: '0.8125rem',
           fontWeight: 600,
           color: '#0F172A',
@@ -96,6 +116,9 @@ export default function ExportSummary({
   rows,
   enrichedRows,
   onReset,
+  validCount,
+  errorCount,
+  importDate,
 }: ExportSummaryProps) {
   const baseName = excelFile.fileName.replace(/\.[^.]+$/, '');
 
@@ -153,6 +176,20 @@ export default function ExportSummary({
         <MetaChip label="Projects" value={totalRows.toLocaleString()} />
         <Separator />
         <MetaChip label="Columns" value={totalColumns} />
+        {typeof validCount === 'number' && typeof errorCount === 'number' && (
+          <>
+            <Separator />
+            <MetaChip label="Valid Records" value={validCount.toLocaleString()} />
+            <Separator />
+            <MetaChip label="Records with Errors" value={errorCount.toLocaleString()} />
+          </>
+        )}
+        {importDate !== undefined && (
+          <>
+            <Separator />
+            <MetaChip label="Import Date" value={formatDateTime(importDate)} />
+          </>
+        )}
       </div>
 
       {/* Action buttons */}
@@ -163,7 +200,7 @@ export default function ExportSummary({
           disabled={enrichedRows.length === 0}
           title={`Export ${enrichedRows.length} rows as Excel with Progress & Status`}
           style={{
-            fontFamily: 'Sora, sans-serif',
+            fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
             fontWeight: 600,
             fontSize: '0.8125rem',
             color: enrichedRows.length === 0 ? '#94A3B8' : '#059669',
@@ -204,7 +241,7 @@ export default function ExportSummary({
           disabled={rows.length === 0}
           title={`Export ${rows.length} rows as CSV`}
           style={{
-            fontFamily: 'Sora, sans-serif',
+            fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
             fontWeight: 600,
             fontSize: '0.8125rem',
             color: rows.length === 0 ? '#94A3B8' : '#0D9488',
@@ -242,7 +279,7 @@ export default function ExportSummary({
           onClick={onReset}
           aria-label="Clear and upload a new file"
           style={{
-            fontFamily: 'Sora, sans-serif',
+            fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
             fontWeight: 600,
             fontSize: '0.8125rem',
             color: '#FFFFFF',

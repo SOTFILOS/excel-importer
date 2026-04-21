@@ -6,11 +6,14 @@ import ExportSummary from './components/ExportSummary';
 import RowDrawer from './components/RowDrawer';
 import UploadPreview from './components/UploadPreview';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
+import KanbanBoard from './components/KanbanBoard';
 import LandingPage from './components/LandingPage';
 import { useExcelParser } from './hooks/useExcelParser';
 import { cellStr } from './utils/fieldCategoriser';
 import { enrichRows, getUniquePMs } from './utils/projectAnalytics';
-
+import { applyValidation } from './utils/rowValidation';
+import { readinessPct } from './utils/constants';
+import { ensureDocHeader, annotateRowsWithDocUrlInPlace, rowHasDocumentation } from './utils/docUtils';
 /** Keep only rows whose type column value is exactly "Project" (case-insensitive). */
 function filterProjectRows(
   headers: string[],
@@ -26,20 +29,13 @@ function filterProjectRows(
   );
 }
 
-type ViewMode = 'cards' | 'table';
+type ViewMode = 'cards' | 'table' | 'kanban';
 type ReadinessFilter = 'all' | 'on-track' | 'at-risk' | 'no-status';
 type DashboardView = 'data' | 'analytics';
+type DocFilter = 'all' | 'has-docs' | 'no-docs';
 
-function rowReadinessPct(headers: string[], row: Record<string, unknown>): number | null {
-  let yes = 0, no = 0;
-  headers.forEach((h) => {
-    const v = String(row[h] ?? '').trim().toUpperCase();
-    if (v === 'Y' || v === 'YES') yes++;
-    else if (v === 'N' || v === 'NO') no++;
-  });
-  const total = yes + no;
-  return total > 0 ? Math.round((yes / total) * 100) : null;
-}
+
+ // Documentation helpers centralized in utils/docUtils.ts
 
 const FILTER_OPTIONS: { key: ReadinessFilter; label: string; dotColor?: string }[] = [
   { key: 'all', label: 'All' },
@@ -74,7 +70,7 @@ function FilterBar({
               border: isActive ? '1.5px solid #4F46E5' : '1.5px solid #E2E0D8',
               backgroundColor: isActive ? '#4F46E5' : '#FFFFFF',
               color: isActive ? '#FFFFFF' : '#64748B',
-              fontFamily: 'Sora, sans-serif',
+              fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
               fontSize: '0.8125rem',
               fontWeight: isActive ? 600 : 400,
               cursor: 'pointer',
@@ -96,7 +92,7 @@ function FilterBar({
             {label}
             <span
               style={{
-                fontFamily: 'IBM Plex Mono, monospace',
+                fontFamily: 'JetBrains Mono, monospace',
                 fontSize: '0.6875rem',
                 backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : '#F3F1EE',
                 borderRadius: 10,
@@ -163,7 +159,7 @@ function StatPill({
         <span
           className="stat-in"
           style={{
-            fontFamily: 'IBM Plex Mono, monospace',
+            fontFamily: 'JetBrains Mono, monospace',
             fontWeight: 700,
             fontSize: '1.125rem',
             color: valueColor,
@@ -176,7 +172,7 @@ function StatPill({
       </div>
       <span
         style={{
-          fontFamily: 'Sora, sans-serif',
+          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
           fontSize: '0.5625rem',
           textTransform: 'uppercase',
           letterSpacing: '0.09em',
@@ -249,6 +245,9 @@ export default function App() {
   const [readinessFilter, setReadinessFilter] = useState<ReadinessFilter>('all');
   const [pmFilter, setPMFilter] = useState<string>('all');
   const [dashboardView, setDashboardView] = useState<DashboardView>('data');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'valid' | 'error'>('all');
+  const [docsFilter, setDocsFilter] = useState<DocFilter>('all');
+  const [importDate, setImportDate] = useState<Date | null>(null);
 
   const { sheets, activeSheet, setActiveSheet, headers, rows, loading, error, parsedFile } =
     useExcelParser(file);
@@ -257,6 +256,7 @@ export default function App() {
     setSelectedRow(null);
     setReadinessFilter('all');
     setPMFilter('all');
+    setDocsFilter('all');
     setDashboardView('data');
   }, [activeSheet, file]);
 
@@ -270,6 +270,10 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [error]);
+
+  useEffect(() => {
+    if (parsedFile) setImportDate(new Date());
+  }, [parsedFile]);
 
   const handleFileSelect = useCallback((f: File) => { setPendingFile(f); }, []);
   const handlePreviewConfirm = useCallback((f: File) => { setFile(f); setPendingFile(null); setSelectedRow(null); }, []);
@@ -296,7 +300,7 @@ export default function App() {
 
   const pmList = useMemo(() => getUniquePMs(allEnrichedRows), [allEnrichedRows]);
 
-  // Apply PM filter first, then readiness filter
+  // Apply PM filter first
   const pmFilteredRows = useMemo(
     () =>
       pmFilter === 'all'
@@ -305,27 +309,71 @@ export default function App() {
     [projectRows, allEnrichedRows, pmFilter]
   );
 
+  // Compute Documentation URL column on the PM-filtered rows and include it in headers
+  const headersWithDoc = useMemo(() => ensureDocHeader(headers), [headers]);
+
+  const pmFilteredRowsWithDoc = useMemo(() => {
+    // annotate rows in-place so selection identity is preserved (applyValidation also mutates)
+    annotateRowsWithDocUrlInPlace(headers, pmFilteredRows);
+    return pmFilteredRows;
+  }, [pmFilteredRows, headers]);
+
+  // Validate rows (adds Row Number + Status) and reorder headers
+  const validation = useMemo(
+    () => applyValidation(headersWithDoc, pmFilteredRowsWithDoc),
+    [headersWithDoc, pmFilteredRowsWithDoc]
+  );
+
+  // Apply record status filter
+  const statusFilteredRows = useMemo(() => {
+    const sh = validation.statusHeader;
+    if (!sh) return pmFilteredRows;
+    if (statusFilter === 'all') return pmFilteredRows;
+    const target = statusFilter === 'valid' ? 'Valid' : 'Error';
+    return pmFilteredRows.filter((row) => String((row as any)[sh]) === target);
+  }, [pmFilteredRows, validation, statusFilter]);
+
+  // Docs filter counts (for chip UI)
+  const docCounts = useMemo((): Record<DocFilter, number> => {
+    let has = 0, none = 0;
+    statusFilteredRows.forEach((row) => {
+      if (rowHasDocumentation(headers, row)) has++;
+      else none++;
+    });
+    return { all: statusFilteredRows.length, 'has-docs': has, 'no-docs': none };
+  }, [statusFilteredRows, headers]);
+
+  // Apply documentation filter
+  const docsFilteredRows = useMemo(() => {
+    if (docsFilter === 'all') return statusFilteredRows;
+    return statusFilteredRows.filter((row) =>
+      docsFilter === 'has-docs'
+        ? rowHasDocumentation(headers, row)
+        : !rowHasDocumentation(headers, row)
+    );
+  }, [statusFilteredRows, headers, docsFilter]);
+
   const filterCounts = useMemo((): Record<ReadinessFilter, number> => {
     let onTrack = 0, atRisk = 0, noStatus = 0;
-    pmFilteredRows.forEach((row) => {
-      const pct = rowReadinessPct(headers, row);
+    docsFilteredRows.forEach((row) => {
+      const pct = readinessPct(headers, row);
       if (pct === null) noStatus++;
       else if (pct >= 70) onTrack++;
       else if (pct < 40) atRisk++;
     });
-    return { all: pmFilteredRows.length, 'on-track': onTrack, 'at-risk': atRisk, 'no-status': noStatus };
-  }, [pmFilteredRows, headers]);
+    return { all: docsFilteredRows.length, 'on-track': onTrack, 'at-risk': atRisk, 'no-status': noStatus };
+  }, [docsFilteredRows, headers]);
 
   const filteredProjectRows = useMemo(() => {
-    if (readinessFilter === 'all') return pmFilteredRows;
-    return pmFilteredRows.filter((row) => {
-      const pct = rowReadinessPct(headers, row);
+    if (readinessFilter === 'all') return docsFilteredRows;
+    return docsFilteredRows.filter((row) => {
+      const pct = readinessPct(headers, row);
       if (readinessFilter === 'on-track') return pct !== null && pct >= 70;
       if (readinessFilter === 'at-risk') return pct !== null && pct < 40;
       if (readinessFilter === 'no-status') return pct === null;
       return true;
     });
-  }, [pmFilteredRows, headers, readinessFilter]);
+  }, [docsFilteredRows, headers, readinessFilter]);
 
   // Enrich the final filtered rows (for charts & Excel export)
   const filteredEnrichedRows = useMemo(
@@ -364,7 +412,7 @@ export default function App() {
   const drawerOpen = selectedRow !== null;
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F7F5F2', fontFamily: 'Sora, sans-serif' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#F7F5F2', fontFamily: 'Roboto, Arial, Helvetica, sans-serif' }}>
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <header
@@ -406,7 +454,7 @@ export default function App() {
           <div>
             <span
               style={{
-                fontFamily: 'Sora, sans-serif',
+                fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                 fontWeight: 700,
                 fontSize: '1rem',
                 color: '#F8FAFC',
@@ -418,7 +466,7 @@ export default function App() {
             </span>
             <span
               style={{
-                fontFamily: 'Sora, sans-serif',
+                fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                 fontSize: '0.625rem',
                 color: '#94A3B8',
                 letterSpacing: '0.06em',
@@ -449,7 +497,7 @@ export default function App() {
                   key={v}
                   onClick={() => setDashboardView(v)}
                   style={{
-                    fontFamily: 'Sora, sans-serif',
+                    fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                     fontSize: '0.75rem',
                     fontWeight: 600,
                     padding: '4px 14px',
@@ -500,7 +548,7 @@ export default function App() {
           {hasData && (
             <span
               style={{
-                fontFamily: 'IBM Plex Mono, monospace',
+                fontFamily: 'JetBrains Mono, monospace',
                 fontSize: '0.75rem',
                 color: '#CBD5E1',
                 backgroundColor: 'rgba(255,255,255,0.07)',
@@ -517,11 +565,11 @@ export default function App() {
             </span>
           )}
           {drawerOpen && (
-            <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.75rem', color: '#94A3B8' }}>
+            <span style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.75rem', color: '#94A3B8' }}>
               Press{' '}
               <kbd
                 style={{
-                  fontFamily: 'IBM Plex Mono, monospace',
+                  fontFamily: 'JetBrains Mono, monospace',
                   backgroundColor: 'rgba(255,255,255,0.1)',
                   border: '1px solid rgba(255,255,255,0.15)',
                   borderRadius: 4,
@@ -583,7 +631,7 @@ export default function App() {
                 strokeLinecap="round"
               />
             </svg>
-            <p style={{ fontFamily: 'Sora, sans-serif', color: '#64748B', margin: 0 }}>
+            <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', color: '#64748B', margin: 0 }}>
               Parsing your file…
             </p>
           </div>
@@ -596,11 +644,14 @@ export default function App() {
               excelFile={parsedFile}
               activeSheet={activeSheet}
               totalRows={filteredProjectRows.length}
-              totalColumns={headers.length}
-              headers={headers}
+              totalColumns={validation.headers.length}
+              headers={validation.headers}
               rows={filteredProjectRows}
               enrichedRows={filteredEnrichedRows}
               onReset={handleReset}
+              validCount={validation.validCount}
+              errorCount={validation.errorCount}
+              importDate={importDate}
             />
 
             {/* Analytics Dashboard */}
@@ -659,7 +710,7 @@ export default function App() {
                     {sheets.length === 1 && (
                       <span
                         style={{
-                          fontFamily: 'Sora, sans-serif',
+                          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                           fontWeight: 600,
                           fontSize: '0.9375rem',
                           color: '#0F172A',
@@ -671,7 +722,7 @@ export default function App() {
                     {/* Row count badge */}
                     <span
                       style={{
-                        fontFamily: 'IBM Plex Mono, monospace',
+                        fontFamily: 'JetBrains Mono, monospace',
                         fontSize: '0.75rem',
                         fontWeight: 600,
                         color: readinessFilter !== 'all' ? '#4F46E5' : '#64748B',
@@ -717,6 +768,17 @@ export default function App() {
                         <rect x="1" y="10" width="12" height="2" rx="1" fill="currentColor" fillOpacity="0.4" />
                       </svg>
                     </ViewToggleBtn>
+                    <ViewToggleBtn
+                      active={viewMode === 'kanban'}
+                      onClick={() => setViewMode('kanban')}
+                      label="Kanban view"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                        <rect x="1" y="1" width="3" height="12" rx="1" fill="currentColor" />
+                        <rect x="5.5" y="1" width="3" height="9" rx="1" fill="currentColor" fillOpacity="0.6" />
+                        <rect x="10" y="1" width="3" height="6" rx="1" fill="currentColor" fillOpacity="0.35" />
+                      </svg>
+                    </ViewToggleBtn>
                   </div>
                 </div>
 
@@ -738,6 +800,132 @@ export default function App() {
                       counts={filterCounts}
                     />
 
+                    {/* Record Status filter */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          color: '#64748B',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Record Status
+                      </span>
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => { setStatusFilter(e.target.value as 'all' | 'valid' | 'error'); }}
+                        style={{
+                          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                          fontSize: '0.8125rem',
+                          border: `1.5px solid ${statusFilter !== 'all' ? '#4F46E5' : '#E2E0D8'}`,
+                          borderRadius: 8,
+                          padding: '5px 10px',
+                          backgroundColor: statusFilter !== 'all' ? '#EEF0F8' : '#FFFFFF',
+                          color: statusFilter !== 'all' ? '#4F46E5' : '#0F172A',
+                          cursor: 'pointer',
+                          outline: 'none',
+                          minWidth: 160,
+                        }}
+                      >
+                        <option value="all">All Records</option>
+                        <option value="valid">Valid Only</option>
+                        <option value="error">Errors Only</option>
+                      </select>
+                      <button
+                        onClick={() => { setStatusFilter('all'); setReadinessFilter('all'); setPMFilter('all'); setDocsFilter('all'); }}
+                        style={{
+                          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                          fontSize: '0.75rem',
+                          color: '#64748B',
+                          background: 'transparent',
+                          border: '1.5px solid #E2E0D8',
+                          borderRadius: 8,
+                          padding: '5px 10px',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title="Clear all filters"
+                      >
+                        Clear Filters
+                      </button>
+                    </div>
+
+                    {/* Docs filter */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          color: '#64748B',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Docs
+                      </span>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {(['all', 'has-docs', 'no-docs'] as DocFilter[]).map((key) => {
+                          const isActive = docsFilter === key;
+                          const label = key === 'all' ? 'All' : key === 'has-docs' ? 'Has Docs' : 'No Docs';
+                          const count = docCounts[key];
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => setDocsFilter(key)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '5px 14px',
+                                borderRadius: 20,
+                                border: isActive ? '1.5px solid #4F46E5' : '1.5px solid #E2E0D8',
+                                backgroundColor: isActive ? '#4F46E5' : '#FFFFFF',
+                                color: isActive ? '#FFFFFF' : '#64748B',
+                                fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                                fontSize: '0.8125rem',
+                                fontWeight: isActive ? 600 : 400,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {label}
+                              <span
+                                style={{
+                                  fontFamily: 'JetBrains Mono, monospace',
+                                  fontSize: '0.6875rem',
+                                  backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : '#F3F1EE',
+                                  borderRadius: 10,
+                                  padding: '1px 7px',
+                                  color: isActive ? '#FFFFFF' : '#94A3B8',
+                                  minWidth: 18,
+                                  textAlign: 'center',
+                                }}
+                              >
+                                {count}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
                     {/* PM filter */}
                     {pmList.length > 0 && (
                       <>
@@ -748,7 +936,7 @@ export default function App() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                           <span
                             style={{
-                              fontFamily: 'Sora, sans-serif',
+                              fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                               fontSize: '0.75rem',
                               fontWeight: 600,
                               color: '#64748B',
@@ -761,7 +949,7 @@ export default function App() {
                             value={pmFilter}
                             onChange={(e) => { setPMFilter(e.target.value); setReadinessFilter('all'); }}
                             style={{
-                              fontFamily: 'Sora, sans-serif',
+                              fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                               fontSize: '0.8125rem',
                               border: `1.5px solid ${pmFilter !== 'all' ? '#4F46E5' : '#E2E0D8'}`,
                               borderRadius: 8,
@@ -789,14 +977,21 @@ export default function App() {
               <div style={{ padding: '20px' }}>
                 {viewMode === 'cards' ? (
                   <RecordList
-                    headers={headers}
+                    headers={validation.headers}
+                    rows={filteredProjectRows}
+                    selectedRow={selectedRow}
+                    onRowClick={handleRowClick}
+                  />
+                ) : viewMode === 'kanban' ? (
+                  <KanbanBoard
+                    headers={validation.headers}
                     rows={filteredProjectRows}
                     selectedRow={selectedRow}
                     onRowClick={handleRowClick}
                   />
                 ) : (
                   <DataTable
-                    headers={headers}
+                    headers={validation.headers}
                     rows={filteredProjectRows}
                     selectedRow={selectedRow}
                     onRowClick={handleRowClick}
@@ -892,7 +1087,7 @@ export default function App() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <p
                 style={{
-                  fontFamily: 'Sora, sans-serif',
+                  fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                   fontWeight: 600,
                   fontSize: '0.8125rem',
                   color: toast.type === 'error' ? '#DC2626' : '#4F46E5',
@@ -903,7 +1098,7 @@ export default function App() {
               </p>
               <p
                 style={{
-                  fontFamily: 'Sora, sans-serif',
+                  fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                   fontSize: '0.8125rem',
                   color: toast.type === 'error' ? '#7F1D1D' : '#6366F1',
                   margin: '2px 0 0 0',

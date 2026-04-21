@@ -61,7 +61,7 @@ function BarTooltip({
         border: '1px solid #E2E0D8',
         borderRadius: 8,
         padding: '8px 12px',
-        fontFamily: 'Sora, sans-serif',
+        fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
         fontSize: '0.75rem',
         boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
       }}
@@ -104,7 +104,7 @@ function ChartCard({
       <div>
         <p
           style={{
-            fontFamily: 'Sora, sans-serif',
+            fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
             fontWeight: 700,
             fontSize: '0.8125rem',
             color: '#0F172A',
@@ -116,7 +116,7 @@ function ChartCard({
           {title}
         </p>
         {subtitle && (
-          <p style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.6875rem', color: '#94A3B8', margin: '2px 0 0' }}>
+          <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.6875rem', color: '#94A3B8', margin: '2px 0 0' }}>
             {subtitle}
           </p>
         )}
@@ -143,7 +143,7 @@ function PMFilter({
       <label
         htmlFor="pm-filter"
         style={{
-          fontFamily: 'Sora, sans-serif',
+          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
           fontSize: '0.8125rem',
           fontWeight: 600,
           color: '#64748B',
@@ -157,7 +157,7 @@ function PMFilter({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         style={{
-          fontFamily: 'Sora, sans-serif',
+          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
           fontSize: '0.8125rem',
           border: '1.5px solid #E2E0D8',
           borderRadius: 8,
@@ -198,7 +198,7 @@ function RadarTick({
       textAnchor="middle"
       dominantBaseline="middle"
       fill="#64748B"
-      fontFamily="Sora, sans-serif"
+      fontFamily="Roboto, Arial, Helvetica, sans-serif"
       fontSize={9}
     >
       {payload?.value}
@@ -297,7 +297,7 @@ export default function AnalyticsDashboard({
           </div>
           <span
             style={{
-              fontFamily: 'Sora, sans-serif',
+              fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
               fontWeight: 700,
               fontSize: '0.9375rem',
               color: '#0F172A',
@@ -307,7 +307,7 @@ export default function AnalyticsDashboard({
           </span>
           <span
             style={{
-              fontFamily: 'IBM Plex Mono, monospace',
+              fontFamily: 'JetBrains Mono, monospace',
               fontSize: '0.6875rem',
               color: '#4F46E5',
               backgroundColor: '#EEF0F8',
@@ -347,7 +347,7 @@ export default function AnalyticsDashboard({
               <XAxis
                 type="number"
                 domain={[0, 100]}
-                tick={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, fill: '#94A3B8' }}
+                tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fill: '#94A3B8' }}
                 tickFormatter={(v) => `${v}%`}
                 axisLine={false}
                 tickLine={false}
@@ -356,7 +356,7 @@ export default function AnalyticsDashboard({
                 type="category"
                 dataKey="name"
                 width={130}
-                tick={{ fontFamily: 'Sora, sans-serif', fontSize: 11, fill: '#374151' }}
+                tick={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: 11, fill: '#374151' }}
                 tickFormatter={(v: string) => (v.length > 20 ? `${v.slice(0, 19)}…` : v)}
                 axisLine={false}
                 tickLine={false}
@@ -398,7 +398,7 @@ export default function AnalyticsDashboard({
                 formatter={(value) => (
                   <span
                     style={{
-                      fontFamily: 'Sora, sans-serif',
+                      fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                       fontSize: '0.75rem',
                       color: '#374151',
                     }}
@@ -413,7 +413,7 @@ export default function AnalyticsDashboard({
                   name,
                 ]}
                 contentStyle={{
-                  fontFamily: 'Sora, sans-serif',
+                  fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                   fontSize: '0.75rem',
                   borderRadius: 8,
                   border: '1px solid #E2E0D8',
@@ -440,7 +440,7 @@ export default function AnalyticsDashboard({
                 <PolarRadiusAxis
                   angle={90}
                   domain={[0, 100]}
-                  tick={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 8, fill: '#94A3B8' }}
+                  tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fill: '#94A3B8' }}
                   tickCount={4}
                   axisLine={false}
                 />
@@ -455,7 +455,7 @@ export default function AnalyticsDashboard({
                 <Tooltip
                   formatter={(value: number) => [`${value}%`, 'Completion']}
                   contentStyle={{
-                    fontFamily: 'Sora, sans-serif',
+                    fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                     fontSize: '0.75rem',
                     borderRadius: 8,
                     border: '1px solid #E2E0D8',

@@ -7,8 +7,8 @@
   --color-teal: #0D9488;
   --color-surface: #FFFFFF;
   --color-border: #E2E8F0;
-  --font-sora: 'Sora', sans-serif;
-  --font-mono: 'IBM Plex Mono', 'Menlo', monospace;
+  --font-sora: 'Roboto', Arial, Helvetica, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Menlo', monospace;
 }
 
 html, body, #root { height: 100%; }
@@ -16,7 +16,7 @@ html, body, #root { height: 100%; }
 body {
   margin: 0;
   background-color: #F7F5F2;
-  font-family: 'Sora', sans-serif;
+  font-family: 'Roboto', Arial, Helvetica, sans-serif;
   color: #0F172A;
   -webkit-font-smoothing: antialiased;
 }

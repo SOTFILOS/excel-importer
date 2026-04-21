@@ -155,10 +155,10 @@ function EmptyState() {
           strokeLinecap="round"
         />
       </svg>
-      <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 600, color: '#64748B', margin: 0 }}>
+      <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontWeight: 600, color: '#64748B', margin: 0 }}>
         No data to display
       </p>
-      <p style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.875rem', margin: 0 }}>
+      <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.875rem', margin: 0 }}>
         This sheet appears to be empty.
       </p>
     </div>
@@ -282,7 +282,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
               paddingBottom: 8,
               border: '1.5px solid #E2E0D8',
               borderRadius: 8,
-              fontFamily: 'Sora, sans-serif',
+              fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
               fontSize: '0.875rem',
               color: '#0F172A',
               backgroundColor: '#FFFFFF',
@@ -299,7 +299,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <label
             htmlFor="page-size"
-            style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.8125rem', color: '#64748B', whiteSpace: 'nowrap' }}
+            style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.8125rem', color: '#64748B', whiteSpace: 'nowrap' }}
           >
             Rows per page
           </label>
@@ -311,7 +311,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
               setPage(1);
             }}
             style={{
-              fontFamily: 'IBM Plex Mono, monospace',
+              fontFamily: 'JetBrains Mono, monospace',
               fontSize: '0.8125rem',
               border: '1.5px solid #E2E0D8',
               borderRadius: 8,
@@ -344,7 +344,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
               borderRadius: 8,
               backgroundColor: hiddenCols.size > 0 ? '#EEF0F8' : '#FFFFFF',
               color: hiddenCols.size > 0 ? '#4F46E5' : '#64748B',
-              fontFamily: 'Sora, sans-serif',
+              fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
               fontSize: '0.8125rem',
               fontWeight: hiddenCols.size > 0 ? 600 : 400,
               cursor: 'pointer',
@@ -361,7 +361,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
             {hiddenCols.size > 0 && (
               <span
                 style={{
-                  fontFamily: 'IBM Plex Mono, monospace',
+                  fontFamily: 'JetBrains Mono, monospace',
                   fontSize: '0.6875rem',
                   backgroundColor: '#4F46E5',
                   color: '#FFFFFF',
@@ -400,14 +400,14 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
                   justifyContent: 'space-between',
                 }}
               >
-                <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.75rem', fontWeight: 600, color: '#374151' }}>
+                <span style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.75rem', fontWeight: 600, color: '#374151' }}>
                   Show / Hide
                 </span>
                 {hiddenCols.size > 0 && (
                   <button
                     onClick={() => setHiddenCols(new Set())}
                     style={{
-                      fontFamily: 'Sora, sans-serif',
+                      fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                       fontSize: '0.6875rem',
                       color: '#4F46E5',
                       background: 'none',
@@ -446,7 +446,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
                     />
                     <span
                       style={{
-                        fontFamily: 'IBM Plex Mono, monospace',
+                        fontFamily: 'JetBrains Mono, monospace',
                         fontSize: '0.75rem',
                         color: isVisible ? '#1F2937' : '#94A3B8',
                         overflow: 'hidden',
@@ -477,7 +477,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
           style={{
             width: '100%',
             borderCollapse: 'collapse',
-            fontFamily: 'IBM Plex Mono, monospace',
+            fontFamily: 'JetBrains Mono, monospace',
             fontSize: '0.8125rem',
           }}
         >
@@ -494,7 +494,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
                     style={{
                       padding: '11px 16px',
                       textAlign: 'left',
-                      fontFamily: 'Sora, sans-serif',
+                      fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                       fontWeight: 600,
                       fontSize: '0.75rem',
                       color: isActive ? '#0D9488' : '#1F2937',
@@ -534,7 +534,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
                     padding: '40px 16px',
                     textAlign: 'center',
                     color: '#94A3B8',
-                    fontFamily: 'Sora, sans-serif',
+                    fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                   }}
                 >
                   No rows match your search.
@@ -615,7 +615,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
         {/* Row count */}
         <p
           style={{
-            fontFamily: 'IBM Plex Mono, monospace',
+            fontFamily: 'JetBrains Mono, monospace',
             fontSize: '0.8125rem',
             color: '#64748B',
             margin: 0,
@@ -648,7 +648,7 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
 
           <span
             style={{
-              fontFamily: 'IBM Plex Mono, monospace',
+              fontFamily: 'JetBrains Mono, monospace',
               fontSize: '0.8125rem',
               color: '#1F2937',
               padding: '4px 10px',
@@ -701,7 +701,7 @@ function PageButton({ onClick, disabled, children, ...rest }: PageButtonProps) {
         borderRadius: 6,
         backgroundColor: disabled ? '#FAFBFF' : '#FFFFFF',
         color: disabled ? '#CBD5E1' : '#1F2937',
-        fontFamily: 'IBM Plex Mono, monospace',
+        fontFamily: 'JetBrains Mono, monospace',
         fontSize: '0.875rem',
         cursor: disabled ? 'not-allowed' : 'pointer',
         display: 'flex',

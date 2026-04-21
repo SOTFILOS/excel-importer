@@ -25,7 +25,7 @@ export default function SheetSelector({
       {/* Sheet count badge */}
       <span
         style={{
-          fontFamily: 'IBM Plex Mono, monospace',
+          fontFamily: 'JetBrains Mono, monospace',
           fontSize: '0.6875rem',
           fontWeight: 500,
           color: '#94A3B8',
@@ -48,7 +48,7 @@ export default function SheetSelector({
             aria-selected={isActive}
             onClick={() => onSelect(sheet)}
             style={{
-              fontFamily: 'Sora, sans-serif',
+              fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
               fontSize: '0.8125rem',
               fontWeight: isActive ? 600 : 400,
               color: isActive ? '#0B1437' : '#64748B',
