@@ -35,14 +35,79 @@ interface Analytics {
 /** cellStr centralized in ../utils/fieldCategoriser */
 
 function inferTitle(headers: string[], row: Record<string, unknown>): string {
+  const lc = (s: string) => s.toLowerCase();
+  const isBizDesc = (hl: string) =>
+    hl.includes('σαφή') && hl.includes('επιχειρησιακ') && hl.includes('περιγραφ') && hl.includes('αλλαγ');
+  const isTitleHeader = (hl: string) => /\btitle\b/.test(hl);
+  const isTechTeamHeader = (hl: string) => (hl.includes('tech') || hl.includes('teck')) && hl.includes('team');
+
+  // Extract Business Description (Greek) if present
+  let bizDesc = '';
   for (const h of headers) {
     const v = cellStr(row[h]).trim();
-    if (v && v.length > 1 && v.length <= 80 && isNaN(Number(v))) return v;
+    if (!v) continue;
+    const hl = lc(h);
+    if (isBizDesc(hl)) { bizDesc = v; break; }
   }
-  return 'Untitled';
+
+  // Helper to find first value matching predicate; numericOk controls numeric allowance
+  function firstMatch(pred: (hl: string) => boolean, numericOk = true): string {
+    for (const h of headers) {
+      const v = cellStr(row[h]).trim();
+      if (!v) continue;
+      const hl = lc(h);
+      if (pred(hl)) {
+        if (!numericOk && !isNaN(Number(v))) continue;
+        return v;
+      }
+    }
+    return '';
+  }
+
+  // Primary precedence: Item Description > Project Name > PBI Id > AfterCare/Redmine Id
+  const item = firstMatch((hl) => hl.includes('item') && (hl.includes('descr') || hl.includes('description')), true);
+  const proj = item ? '' : firstMatch((hl) => hl.includes('project') && hl.includes('name'), true);
+  const pbi = (!item && !proj) ? firstMatch((hl) => /\bpbi\b/.test(hl), true) : '';
+  const redmine = (!item && !proj && !pbi)
+    ? firstMatch((hl) =>
+        ((hl.includes('redmine') || hl.includes('ticket')) && hl.includes('id')) ||
+        (hl.includes('after') && hl.includes('care') && (hl.includes('id') || hl.includes('redmine'))),
+      true)
+    : '';
+
+  let primary = item || proj || pbi || redmine;
+
+  // Fallback: first reasonable non-numeric, non-email text excluding "Title" and "Tech Team Name"
+  if (!primary) {
+    for (const h of headers) {
+      const v = cellStr(row[h]).trim();
+      if (!v) continue;
+      const hl = lc(h);
+      if (!isTitleHeader(hl) && !isTechTeamHeader(hl) && v.length <= 80 && !v.includes('@') && isNaN(Number(v))) {
+        primary = v;
+        break;
+      }
+    }
+  }
+
+  const composed = [primary || 'Untitled', bizDesc].filter(Boolean).join(' + ');
+  return composed;
 }
 
 function inferId(headers: string[], row: Record<string, unknown>): string {
+  // Prefer numeric IDs from PBI / Redmine first
+  for (const h of headers) {
+    const v = cellStr(row[h]).trim();
+    if (!v) continue;
+    const n = Number(v);
+    const hlo = h.toLowerCase();
+    const isPBI = /\bpbi\b/.test(hlo);
+    const isRedmineId =
+      ((hlo.includes('redmine') || hlo.includes('ticket')) && hlo.includes('id')) ||
+      (hlo.includes('after') && hlo.includes('care') && (hlo.includes('id') || hlo.includes('redmine')));
+    if ((isPBI || isRedmineId) && !isNaN(n) && n > 0 && n < 1_000_000) return v;
+  }
+  // Fallback: first numeric value within range
   for (const h of headers) {
     const v = cellStr(row[h]).trim();
     const n = Number(v);
@@ -405,6 +470,12 @@ function NeedsAttentionPanel({
                   {/* Project */}
                   <td style={{ padding: '10px 16px', maxWidth: 280 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontWeight: 700, color: '#000000',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {p.title}
+                      </span>
                       {p.id && (
                         <span style={{
                           fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 700,
@@ -412,12 +483,6 @@ function NeedsAttentionPanel({
                           border: `1px solid ${cfg.color}30`, borderRadius: 4, padding: '1px 6px', flexShrink: 0,
                         }}>#{p.id}</span>
                       )}
-                      <span style={{
-                        fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontWeight: 600, color: '#0F172A',
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }}>
-                        {p.title}
-                      </span>
                     </div>
                   </td>
                   {/* Status */}

@@ -134,7 +134,7 @@ export default function UploadPreview({ file, onConfirm, onCancel }: UploadPrevi
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px' }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: '16px 0' }}>
           {loading && (
             <div style={{ padding: '60px 0', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
               <svg width="32" height="32" viewBox="0 0 40 40" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
@@ -204,34 +204,77 @@ export default function UploadPreview({ file, onConfirm, onCancel }: UploadPrevi
 
               {/* Preview table */}
               {current && current.rows.length > 0 ? (
-                <div style={{ overflowX: 'auto', border: '1px solid #E2E0D8', borderRadius: 12 }}>
+                <div
+                  style={{
+                    overflowX: 'auto',
+                    borderTop: '1px solid #E2E0D8',
+                    borderBottom: '1px solid #E2E0D8',
+                    borderLeft: 'none',
+                    borderRight: 'none',
+                    borderRadius: 0,
+                  }}
+                >
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#F3F1EE', borderBottom: '2px solid #E2E0D8' }}>
-                        {current.headers.map((h) => (
-                          <th key={h} style={{
-                            padding: '9px 14px', textAlign: 'left',
-                            fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontWeight: 600, fontSize: '0.6875rem',
-                            color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em',
-                            whiteSpace: 'nowrap', borderRight: '1px solid #E2E0D8',
-                          }}>
-                            {h}
-                          </th>
-                        ))}
+                        {current.headers.map((h, i) => {
+                          const isFirst = i === 0;
+                          const isLast = i === current.headers.length - 1;
+                          return (
+                            <th
+                              key={h}
+                              style={{
+                                padding: '9px 14px',
+                                ...(isFirst ? { paddingLeft: 0 } : {}),
+                                ...(isLast ? { paddingRight: 0 } : {}),
+                                textAlign: 'left',
+                                fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                                fontWeight: 600,
+                                fontSize: '0.6875rem',
+                                color: '#374151',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
+                                whiteSpace: 'nowrap',
+                                borderRight: '1px solid #E2E0D8',
+                              }}
+                            >
+                              {h}
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
                       {current.rows.map((row, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid #F3F1EE', backgroundColor: i % 2 === 0 ? '#FFFFFF' : '#F9F8F6' }}>
-                          {current.headers.map((h) => (
-                            <td key={h} style={{
-                              padding: '8px 14px', color: '#374151',
-                              borderRight: '1px solid #F3F1EE',
-                              maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            }}>
-                              {String(row[h] ?? '')}
-                            </td>
-                          ))}
+                        <tr
+                          key={i}
+                          style={{
+                            borderBottom: '1px solid #F3F1EE',
+                            backgroundColor: i % 2 === 0 ? '#FFFFFF' : '#F9F8F6',
+                          }}
+                        >
+                          {current.headers.map((h, j) => {
+                            const isFirst = j === 0;
+                            const isLast = j === current.headers.length - 1;
+                            return (
+                              <td
+                                key={h}
+                                style={{
+                                  padding: '8px 14px',
+                                  ...(isFirst ? { paddingLeft: 0 } : {}),
+                                  ...(isLast ? { paddingRight: 0 } : {}),
+                                  color: '#374151',
+                                  borderRight: '1px solid #F3F1EE',
+                                  maxWidth: 200,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {String(row[h] ?? '')}
+                              </td>
+                            );
+                          })}
                         </tr>
                       ))}
                     </tbody>

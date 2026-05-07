@@ -80,7 +80,7 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
       <div
         role="button"
         tabIndex={0}
-        aria-label="Upload Excel file — click or drag and drop"
+        aria-label="Import data file — click or drag and drop"
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
@@ -127,7 +127,7 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
         {/* Text */}
         <div className="text-center">
           <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', color: '#0F172A', fontWeight: 600, fontSize: '1rem' }}>
-            {isDragging ? 'Release to upload' : 'Drop your Excel file here'}
+            {isDragging ? 'Release to upload' : 'Drop your data file here'}
           </p>
           <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', color: '#64748B', fontSize: '0.875rem', marginTop: 4 }}>
             or{' '}
@@ -136,7 +136,7 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
             </span>
           </p>
           <p style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', color: '#94A3B8', fontSize: '0.75rem', marginTop: 8 }}>
-            Supports .xlsx and .xls files
+            Supported: .xlsx and .xls
           </p>
         </div>
 

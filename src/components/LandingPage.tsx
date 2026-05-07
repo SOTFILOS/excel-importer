@@ -12,10 +12,13 @@ export default function LandingPage({ onFileSelect }: LandingPageProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        padding: '24px',
       }}
     >
-      <div style={{ width: '100%', maxWidth: 480 }}>
-        <FileUpload onFileSelect={onFileSelect} />
+      <div style={{ width: '100%', maxWidth: 560, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ width: '100%', maxWidth: 560 }}>
+          <FileUpload onFileSelect={onFileSelect} />
+        </div>
       </div>
     </div>
   );

@@ -1,19 +1,17 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import SheetSelector from './components/SheetSelector';
-import DataTable from './components/DataTable';
+import Dashboard from './components/Dashboard';
 import RecordList from './components/RecordList';
-import ExportSummary from './components/ExportSummary';
 import RowDrawer from './components/RowDrawer';
 import UploadPreview from './components/UploadPreview';
-import AnalyticsDashboard from './components/AnalyticsDashboard';
-import KanbanBoard from './components/KanbanBoard';
 import LandingPage from './components/LandingPage';
+import ProjectDetailsView from './components/ProjectDetailsView';
 import { useExcelParser } from './hooks/useExcelParser';
-import { cellStr } from './utils/fieldCategoriser';
+import { cellStr, flagKind, cleanLabel } from './utils/fieldCategoriser';
 import { enrichRows, getUniquePMs } from './utils/projectAnalytics';
-import { applyValidation } from './utils/rowValidation';
-import { readinessPct } from './utils/constants';
-import { ensureDocHeader, annotateRowsWithDocUrlInPlace, rowHasDocumentation } from './utils/docUtils';
+import { rowHasDocumentation } from './utils/docUtils';
+import ExportSummary from './components/ExportSummary';
+import { isBlacklistedHeader } from './utils/constants';
 /** Keep only rows whose type column value is exactly "Project" (case-insensitive). */
 function filterProjectRows(
   headers: string[],
@@ -29,163 +27,17 @@ function filterProjectRows(
   );
 }
 
-type ViewMode = 'cards' | 'table' | 'kanban';
-type ReadinessFilter = 'all' | 'on-track' | 'at-risk' | 'no-status';
-type DashboardView = 'data' | 'analytics';
+type ViewMode = 'cards' | 'details' | 'dashboard';
 type DocFilter = 'all' | 'has-docs' | 'no-docs';
+
+// Criteria blacklist centralized in utils/constants via isBlacklistedHeader()
 
 
  // Documentation helpers centralized in utils/docUtils.ts
 
-const FILTER_OPTIONS: { key: ReadinessFilter; label: string; dotColor?: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'on-track', label: 'On Track', dotColor: '#22C55E' },
-  { key: 'at-risk', label: 'At Risk', dotColor: '#EF4444' },
-  { key: 'no-status', label: 'No Status' },
-];
 
-function FilterBar({
-  active,
-  onChange,
-  counts,
-}: {
-  active: ReadinessFilter;
-  onChange: (f: ReadinessFilter) => void;
-  counts: Record<ReadinessFilter, number>;
-}) {
-  return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-      {FILTER_OPTIONS.map(({ key, label, dotColor }) => {
-        const isActive = active === key;
-        return (
-          <button
-            key={key}
-            onClick={() => onChange(key)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '5px 14px',
-              borderRadius: 20,
-              border: isActive ? '1.5px solid #4F46E5' : '1.5px solid #E2E0D8',
-              backgroundColor: isActive ? '#4F46E5' : '#FFFFFF',
-              color: isActive ? '#FFFFFF' : '#64748B',
-              fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-              fontSize: '0.8125rem',
-              fontWeight: isActive ? 600 : 400,
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {dotColor && (
-              <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: '50%',
-                  backgroundColor: isActive ? 'rgba(255,255,255,0.8)' : dotColor,
-                  flexShrink: 0,
-                }}
-              />
-            )}
-            {label}
-            <span
-              style={{
-                fontFamily: 'JetBrains Mono, monospace',
-                fontSize: '0.6875rem',
-                backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : '#F3F1EE',
-                borderRadius: 10,
-                padding: '1px 7px',
-                color: isActive ? '#FFFFFF' : '#94A3B8',
-                minWidth: 18,
-                textAlign: 'center',
-              }}
-            >
-              {counts[key]}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
-interface ProjectStats {
-  total: number;
-  avgReadiness: number | null;
-  green: number;
-  red: number;
-}
 
-// ── Header stat pill ──────────────────────────────────────────────────────────
-
-function StatPill({
-  label,
-  value,
-  valueColor,
-  dotColor,
-  delay = 0,
-}: {
-  label: string;
-  value: string | number;
-  valueColor: string;
-  dotColor?: string;
-  delay?: number;
-}) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '6px 20px',
-        borderRight: '1px solid rgba(255,255,255,0.07)',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        {dotColor && (
-          <span
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              backgroundColor: dotColor,
-              flexShrink: 0,
-              boxShadow: `0 0 8px ${dotColor}99`,
-            }}
-          />
-        )}
-        <span
-          className="stat-in"
-          style={{
-            fontFamily: 'JetBrains Mono, monospace',
-            fontWeight: 700,
-            fontSize: '1.125rem',
-            color: valueColor,
-            lineHeight: 1,
-            animationDelay: `${delay}ms`,
-          }}
-        >
-          {value}
-        </span>
-      </div>
-      <span
-        style={{
-          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-          fontSize: '0.5625rem',
-          textTransform: 'uppercase',
-          letterSpacing: '0.09em',
-          color: '#94A3B8',
-          marginTop: 4,
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
 
 // ── View toggle button ────────────────────────────────────────────────────────
 
@@ -241,23 +93,25 @@ export default function App() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [selectedRow, setSelectedRow] = useState<Record<string, unknown> | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('cards');
-  const [readinessFilter, setReadinessFilter] = useState<ReadinessFilter>('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('details');
   const [pmFilter, setPMFilter] = useState<string>('all');
-  const [dashboardView, setDashboardView] = useState<DashboardView>('data');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'valid' | 'error'>('all');
   const [docsFilter, setDocsFilter] = useState<DocFilter>('all');
-  const [importDate, setImportDate] = useState<Date | null>(null);
+  const [ynFilters, setYnFilters] = useState<Record<string, 'all' | 'yes' | 'no'>>({});
 
   const { sheets, activeSheet, setActiveSheet, headers, rows, loading, error, parsedFile } =
     useExcelParser(file);
 
+  // Disable Documentation URL on the "drop your excel file here" sheet only
+  const isDropUploadSheet =
+    typeof activeSheet === 'string' && /drop.*excel.*file/i.test(activeSheet.toLowerCase());
+  const disableDocs = Boolean(isDropUploadSheet);
+
+
   useEffect(() => {
     setSelectedRow(null);
-    setReadinessFilter('all');
     setPMFilter('all');
     setDocsFilter('all');
-    setDashboardView('data');
+    setYnFilters({});
   }, [activeSheet, file]);
 
   useEffect(() => {
@@ -271,9 +125,6 @@ export default function App() {
     }
   }, [error]);
 
-  useEffect(() => {
-    if (parsedFile) setImportDate(new Date());
-  }, [parsedFile]);
 
   const handleFileSelect = useCallback((f: File) => { setPendingFile(f); }, []);
   const handlePreviewConfirm = useCallback((f: File) => { setFile(f); setPendingFile(null); setSelectedRow(null); }, []);
@@ -281,6 +132,7 @@ export default function App() {
   const handleReset = useCallback(() => { setFile(null); setSelectedRow(null); }, []);
   const handleRowClick = useCallback((row: Record<string, unknown>) => {
     setSelectedRow((prev) => (prev === row ? null : row));
+    setViewMode('details');
   }, []);
   const handleDrawerClose = useCallback(() => { setSelectedRow(null); }, []);
   const dismissToast = useCallback((id: number) => {
@@ -309,116 +161,87 @@ export default function App() {
     [projectRows, allEnrichedRows, pmFilter]
   );
 
-  // Compute Documentation URL column on the PM-filtered rows and include it in headers
-  const headersWithDoc = useMemo(() => ensureDocHeader(headers), [headers]);
-
-  const pmFilteredRowsWithDoc = useMemo(() => {
-    // annotate rows in-place so selection identity is preserved (applyValidation also mutates)
-    annotateRowsWithDocUrlInPlace(headers, pmFilteredRows);
-    return pmFilteredRows;
-  }, [pmFilteredRows, headers]);
-
-  // Validate rows (adds Row Number + Status) and reorder headers
-  const validation = useMemo(
-    () => applyValidation(headersWithDoc, pmFilteredRowsWithDoc),
-    [headersWithDoc, pmFilteredRowsWithDoc]
+  // Display only the original Excel headers (no computed columns added)
+  const displayHeaders = useMemo(
+    () => headers,
+    [headers]
   );
 
-  // Apply record status filter
-  const statusFilteredRows = useMemo(() => {
-    const sh = validation.statusHeader;
-    if (!sh) return pmFilteredRows;
-    if (statusFilter === 'all') return pmFilteredRows;
-    const target = statusFilter === 'valid' ? 'Valid' : 'Error';
-    return pmFilteredRows.filter((row) => String((row as any)[sh]) === target);
-  }, [pmFilteredRows, validation, statusFilter]);
 
   // Docs filter counts (for chip UI)
   const docCounts = useMemo((): Record<DocFilter, number> => {
+    if (disableDocs) {
+      const total = pmFilteredRows.length;
+      return { all: total, 'has-docs': 0, 'no-docs': total };
+    }
     let has = 0, none = 0;
-    statusFilteredRows.forEach((row) => {
+    pmFilteredRows.forEach((row) => {
       if (rowHasDocumentation(headers, row)) has++;
       else none++;
     });
-    return { all: statusFilteredRows.length, 'has-docs': has, 'no-docs': none };
-  }, [statusFilteredRows, headers]);
+    return { all: pmFilteredRows.length, 'has-docs': has, 'no-docs': none };
+  }, [pmFilteredRows, headers, disableDocs]);
 
   // Apply documentation filter
   const docsFilteredRows = useMemo(() => {
-    if (docsFilter === 'all') return statusFilteredRows;
-    return statusFilteredRows.filter((row) =>
+    if (disableDocs) return pmFilteredRows;
+    if (docsFilter === 'all') return pmFilteredRows;
+    return pmFilteredRows.filter((row) =>
       docsFilter === 'has-docs'
         ? rowHasDocumentation(headers, row)
         : !rowHasDocumentation(headers, row)
     );
-  }, [statusFilteredRows, headers, docsFilter]);
+  }, [pmFilteredRows, headers, docsFilter, disableDocs]);
 
-  const filterCounts = useMemo((): Record<ReadinessFilter, number> => {
-    let onTrack = 0, atRisk = 0, noStatus = 0;
-    docsFilteredRows.forEach((row) => {
-      const pct = readinessPct(headers, row);
-      if (pct === null) noStatus++;
-      else if (pct >= 70) onTrack++;
-      else if (pct < 40) atRisk++;
-    });
-    return { all: docsFilteredRows.length, 'on-track': onTrack, 'at-risk': atRisk, 'no-status': noStatus };
-  }, [docsFilteredRows, headers]);
 
+  // Auto-detect Y/N criteria columns from the currently PM-filtered set
+  const ynFlagColumns = useMemo(() => {
+    const cols: string[] = [];
+    for (const h of headers) {
+      if (isBlacklistedHeader(h)) continue;
+      for (const row of pmFilteredRows) {
+        const fk = flagKind((row as any)[h]);
+        if (fk === 'yes' || fk === 'no') {
+          cols.push(h);
+          break;
+        }
+      }
+    }
+    return cols;
+  }, [headers, pmFilteredRows]);
+
+  // Apply Y/N criteria filters after Docs filter
   const filteredProjectRows = useMemo(() => {
-    if (readinessFilter === 'all') return docsFilteredRows;
+    const activeFilters = Object.entries(ynFilters).filter(([, v]) => v !== 'all');
+    if (activeFilters.length === 0) return docsFilteredRows;
     return docsFilteredRows.filter((row) => {
-      const pct = readinessPct(headers, row);
-      if (readinessFilter === 'on-track') return pct !== null && pct >= 70;
-      if (readinessFilter === 'at-risk') return pct !== null && pct < 40;
-      if (readinessFilter === 'no-status') return pct === null;
+      for (const [col, need] of activeFilters) {
+        if (!headers.includes(col)) continue;
+        const fk = flagKind((row as any)[col]);
+        if (need === 'yes' && fk !== 'yes') return false;
+        if (need === 'no' && fk !== 'no') return false;
+      }
       return true;
     });
-  }, [docsFilteredRows, headers, readinessFilter]);
+  }, [docsFilteredRows, ynFilters, headers]);
 
   // Enrich the final filtered rows (for charts & Excel export)
-  const filteredEnrichedRows = useMemo(
+  const enrichedRowsForExport = useMemo(
     () => enrichRows(headers, filteredProjectRows),
     [headers, filteredProjectRows]
   );
-
-  const projectStats = useMemo((): ProjectStats | null => {
-    if (!projectRows.length || !headers.length) return null;
-    let totalYes = 0, totalNo = 0, green = 0, red = 0;
-    projectRows.forEach((row) => {
-      let yes = 0, no = 0;
-      headers.forEach((h) => {
-        const v = String(row[h] ?? '').trim().toUpperCase();
-        if (v === 'Y' || v === 'YES') yes++;
-        else if (v === 'N' || v === 'NO') no++;
-      });
-      totalYes += yes;
-      totalNo += no;
-      const t = yes + no;
-      if (t > 0) {
-        if (yes / t >= 0.7) green++;
-        else if (yes / t < 0.4) red++;
-      }
-    });
-    const total = totalYes + totalNo;
-    return {
-      total: projectRows.length,
-      avgReadiness: total > 0 ? Math.round((totalYes / total) * 100) : null,
-      green,
-      red,
-    };
-  }, [projectRows, headers]);
 
   const hasData = parsedFile !== null && !loading;
   const drawerOpen = selectedRow !== null;
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F7F5F2', fontFamily: 'Roboto, Arial, Helvetica, sans-serif' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#F7F5F2', fontFamily: 'Roboto, Arial, Helvetica, sans-serif', padding: 0 }}>
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <header
         style={{
           background: 'linear-gradient(135deg, #0B1437 0%, #1A1654 100%)',
-          padding: '0 28px',
+          padding: '0',
           height: 64,
           display: 'flex',
           alignItems: 'center',
@@ -464,84 +287,9 @@ export default function App() {
             >
               Project Tracker
             </span>
-            <span
-              style={{
-                fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-                fontSize: '0.625rem',
-                color: '#94A3B8',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-              }}
-            >
-              Excel Importer
-            </span>
           </div>
         </div>
 
-        {/* Center: Live stats */}
-        {hasData && projectStats && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* View tabs */}
-            <div
-              style={{
-                display: 'flex',
-                backgroundColor: 'rgba(255,255,255,0.07)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: 10,
-                padding: 3,
-                gap: 2,
-              }}
-            >
-              {(['data', 'analytics'] as DashboardView[]).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setDashboardView(v)}
-                  style={{
-                    fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    padding: '4px 14px',
-                    borderRadius: 7,
-                    border: 'none',
-                    cursor: 'pointer',
-                    backgroundColor: dashboardView === v ? '#4F46E5' : 'transparent',
-                    color: dashboardView === v ? '#FFFFFF' : '#94A3B8',
-                    transition: 'all 0.15s',
-                    textTransform: 'capitalize',
-                  }}
-                >
-                  {v === 'analytics' ? 'Analytics' : 'Data'}
-                </button>
-              ))}
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                backgroundColor: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 14,
-                overflow: 'hidden',
-              }}
-            >
-              <StatPill label="Projects" value={projectStats.total} valueColor="#A5B4FC" delay={0} />
-              {projectStats.avgReadiness !== null && (
-                <StatPill
-                  label="Avg Readiness"
-                  value={`${projectStats.avgReadiness}%`}
-                  valueColor={
-                    projectStats.avgReadiness >= 70 ? '#6EE7B7' :
-                    projectStats.avgReadiness >= 40 ? '#FDE68A' : '#FCA5A5'
-                  }
-                  delay={80}
-                />
-              )}
-              <StatPill label="On Track" value={projectStats.green} valueColor="#86EFAC" dotColor="#22C55E" delay={160} />
-              <StatPill label="At Risk" value={projectStats.red} valueColor="#FCA5A5" dotColor="#EF4444" delay={240} />
-            </div>
-          </div>
-        )}
 
         {/* Right: file badge + esc hint */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
@@ -564,7 +312,7 @@ export default function App() {
               {parsedFile.fileName}
             </span>
           )}
-          {drawerOpen && (
+          {drawerOpen && viewMode !== 'details' && (
             <span style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.75rem', color: '#94A3B8' }}>
               Press{' '}
               <kbd
@@ -588,13 +336,13 @@ export default function App() {
 
       {/* ── Main ────────────────────────────────────────────────────────── */}
       <main
-        style={{
-          maxWidth: 1360,
-          margin: '0 auto',
-          padding: '28px 24px',
-          paddingRight: drawerOpen ? `calc(24px + ${DRAWER_WIDTH}px)` : '24px',
-          transition: 'padding-right 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
+       style={{
+         maxWidth: 'none',
+         margin: 0,
+         padding: '32px 1cm',
+          background: 'linear-gradient(90deg, rgba(79,70,229,0.6) 0, rgba(79,70,229,0.6) 4px, rgba(79,70,229,0.25) 1cm, rgba(79,70,229,0) calc(1cm + 14px))',
+         transition: 'padding-right 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
+       }}
       >
         {/* Upload screen */}
         {!hasData && !loading && (
@@ -640,60 +388,38 @@ export default function App() {
         {/* Data view */}
         {hasData && (
           <div className="animate-fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
             <ExportSummary
-              excelFile={parsedFile}
+              excelFile={parsedFile!}
               activeSheet={activeSheet}
               totalRows={filteredProjectRows.length}
-              totalColumns={validation.headers.length}
-              headers={validation.headers}
+              totalColumns={displayHeaders.length}
+              headers={displayHeaders}
               rows={filteredProjectRows}
-              enrichedRows={filteredEnrichedRows}
+              enrichedRows={enrichedRowsForExport}
               onReset={handleReset}
-              validCount={validation.validCount}
-              errorCount={validation.errorCount}
-              importDate={importDate}
             />
-
-            {/* Analytics Dashboard */}
-            {dashboardView === 'analytics' && (
-              <div
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #E2E0D8',
-                  borderRadius: 20,
-                  padding: '20px',
-                  boxShadow: '0 2px 12px rgba(79,70,229,0.06)',
-                }}
-              >
-                <AnalyticsDashboard
-                  headers={headers}
-                  rows={filteredProjectRows}
-                  pmFilter={pmFilter}
-                  onPMFilterChange={(pm) => { setPMFilter(pm); }}
-                />
-              </div>
-            )}
 
             <div
               style={{
                 backgroundColor: '#FFFFFF',
-                border: '1px solid #E2E0D8',
-                borderRadius: 20,
+                border: 'none',
+                borderRadius: 0,
                 overflow: 'hidden',
-                boxShadow: '0 2px 12px rgba(79,70,229,0.06)',
+                boxShadow: '0 4px 20px rgba(11,20,55,0.08)',
               }}
             >
               {/* Panel header */}
               <div
                 style={{
-                  borderBottom: '1px solid #E2E0D8',
+                  borderBottom: 'none',
                   background: 'linear-gradient(180deg, #FAFBFF 0%, #FFFFFF 100%)',
                 }}
               >
                 {/* Top row: sheet selector + count | view toggle */}
                 <div
                   style={{
-                    padding: '14px 20px 12px',
+                    padding: '14px 0 12px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -725,9 +451,9 @@ export default function App() {
                         fontFamily: 'JetBrains Mono, monospace',
                         fontSize: '0.75rem',
                         fontWeight: 600,
-                        color: readinessFilter !== 'all' ? '#4F46E5' : '#64748B',
-                        backgroundColor: readinessFilter !== 'all' ? '#EEF0F8' : '#F3F1EE',
-                        border: `1px solid ${readinessFilter !== 'all' ? '#C7D2FE' : '#E2E0D8'}`,
+                        color: '#64748B',
+                        backgroundColor: '#F3F1EE',
+                        border: '1px solid #E2E0D8',
                         borderRadius: 20,
                         padding: '3px 10px',
                         whiteSpace: 'nowrap',
@@ -758,25 +484,25 @@ export default function App() {
                       </svg>
                     </ViewToggleBtn>
                     <ViewToggleBtn
-                      active={viewMode === 'table'}
-                      onClick={() => setViewMode('table')}
-                      label="Table view"
+                      active={viewMode === 'details'}
+                      onClick={() => setViewMode('details')}
+                      label="Details"
                     >
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                        <rect x="1" y="1" width="12" height="3" rx="1" fill="currentColor" />
-                        <rect x="1" y="6" width="12" height="2" rx="1" fill="currentColor" fillOpacity="0.4" />
-                        <rect x="1" y="10" width="12" height="2" rx="1" fill="currentColor" fillOpacity="0.4" />
+                        <rect x="1" y="1" width="6" height="12" rx="1.5" fill="currentColor" />
+                        <rect x="8" y="1" width="5" height="3" rx="1" fill="currentColor" fillOpacity="0.7" />
+                        <rect x="8" y="5" width="5" height="8" rx="1" fill="currentColor" fillOpacity="0.4" />
                       </svg>
                     </ViewToggleBtn>
                     <ViewToggleBtn
-                      active={viewMode === 'kanban'}
-                      onClick={() => setViewMode('kanban')}
-                      label="Kanban view"
+                      active={viewMode === 'dashboard'}
+                      onClick={() => setViewMode('dashboard')}
+                      label="Overview"
                     >
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                        <rect x="1" y="1" width="3" height="12" rx="1" fill="currentColor" />
-                        <rect x="5.5" y="1" width="3" height="9" rx="1" fill="currentColor" fillOpacity="0.6" />
-                        <rect x="10" y="1" width="3" height="6" rx="1" fill="currentColor" fillOpacity="0.35" />
+                        <rect x="1" y="8" width="4" height="5" rx="1" fill="currentColor" />
+                        <rect x="6" y="1" width="7" height="4" rx="1" fill="currentColor" />
+                        <rect x="6" y="6" width="7" height="7" rx="1" fill="currentColor" fillOpacity="0.5" />
                       </svg>
                     </ViewToggleBtn>
                   </div>
@@ -786,7 +512,7 @@ export default function App() {
                 {pmFilteredRows.length > 0 && (
                   <div
                     style={{
-                      padding: '10px 20px 12px',
+                      padding: '10px 0 12px',
                       borderTop: '1px solid #F3F1EE',
                       display: 'flex',
                       alignItems: 'center',
@@ -794,137 +520,119 @@ export default function App() {
                       flexWrap: 'wrap',
                     }}
                   >
-                    <FilterBar
-                      active={readinessFilter}
-                      onChange={setReadinessFilter}
-                      counts={filterCounts}
-                    />
-
-                    {/* Record Status filter */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        flexShrink: 0,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          color: '#64748B',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        Record Status
-                      </span>
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => { setStatusFilter(e.target.value as 'all' | 'valid' | 'error'); }}
-                        style={{
-                          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-                          fontSize: '0.8125rem',
-                          border: `1.5px solid ${statusFilter !== 'all' ? '#4F46E5' : '#E2E0D8'}`,
-                          borderRadius: 8,
-                          padding: '5px 10px',
-                          backgroundColor: statusFilter !== 'all' ? '#EEF0F8' : '#FFFFFF',
-                          color: statusFilter !== 'all' ? '#4F46E5' : '#0F172A',
-                          cursor: 'pointer',
-                          outline: 'none',
-                          minWidth: 160,
-                        }}
-                      >
-                        <option value="all">All Records</option>
-                        <option value="valid">Valid Only</option>
-                        <option value="error">Errors Only</option>
-                      </select>
-                      <button
-                        onClick={() => { setStatusFilter('all'); setReadinessFilter('all'); setPMFilter('all'); setDocsFilter('all'); }}
-                        style={{
-                          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-                          fontSize: '0.75rem',
-                          color: '#64748B',
-                          background: 'transparent',
-                          border: '1.5px solid #E2E0D8',
-                          borderRadius: 8,
-                          padding: '5px 10px',
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap',
-                        }}
-                        title="Clear all filters"
-                      >
-                        Clear Filters
-                      </button>
-                    </div>
-
-                    {/* Docs filter */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        flexShrink: 0,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          color: '#64748B',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        Docs
-                      </span>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {(['all', 'has-docs', 'no-docs'] as DocFilter[]).map((key) => {
-                          const isActive = docsFilter === key;
-                          const label = key === 'all' ? 'All' : key === 'has-docs' ? 'Has Docs' : 'No Docs';
-                          const count = docCounts[key];
+                    {/* Criteria: Y/N columns */}
+                    {ynFlagColumns.length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span
+                          style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.75rem', fontWeight: 600, color: '#64748B', whiteSpace: 'nowrap' }}
+                        >
+                          Criteria
+                        </span>
+                        {ynFlagColumns.map((h) => {
+                          const val = ynFilters[h] || 'all';
                           return (
-                            <button
-                              key={key}
-                              onClick={() => setDocsFilter(key)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                padding: '5px 14px',
-                                borderRadius: 20,
-                                border: isActive ? '1.5px solid #4F46E5' : '1.5px solid #E2E0D8',
-                                backgroundColor: isActive ? '#4F46E5' : '#FFFFFF',
-                                color: isActive ? '#FFFFFF' : '#64748B',
-                                fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-                                fontSize: '0.8125rem',
-                                fontWeight: isActive ? 600 : 400,
-                                cursor: 'pointer',
-                                transition: 'all 0.15s',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {label}
-                              <span
+                            <div key={h} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: '#94A3B8' }}>
+                                {cleanLabel(h)}
+                              </span>
+                              <select
+                                value={val}
+                                onChange={(e) =>
+                                  setYnFilters((prev) => ({
+                                    ...prev,
+                                    [h]: e.target.value as 'all' | 'yes' | 'no',
+                                  }))
+                                }
                                 style={{
-                                  fontFamily: 'JetBrains Mono, monospace',
-                                  fontSize: '0.6875rem',
-                                  backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : '#F3F1EE',
-                                  borderRadius: 10,
-                                  padding: '1px 7px',
-                                  color: isActive ? '#FFFFFF' : '#94A3B8',
-                                  minWidth: 18,
-                                  textAlign: 'center',
+                                  fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                                  fontSize: '0.8125rem',
+                                  border: `1.5px solid ${val === 'all' ? '#E2E0D8' : val === 'yes' ? '#BBF7D0' : '#FED7AA'}`,
+                                  borderRadius: 8,
+                                  padding: '5px 8px',
+                                  backgroundColor: '#FFFFFF',
+                                  color: val === 'yes' ? '#16A34A' : val === 'no' ? '#C2410C' : '#0F172A',
+                                  cursor: 'pointer',
+                                  outline: 'none',
                                 }}
                               >
-                                {count}
-                              </span>
-                            </button>
+                                <option value="all">All</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                              </select>
+                            </div>
                           );
                         })}
                       </div>
-                    </div>
+                    )}
+  
+                      {/* Docs filter */}
+                    {!disableDocs && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            color: '#64748B',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Docs
+                        </span>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {(['all', 'has-docs', 'no-docs'] as DocFilter[]).map((key) => {
+                            const isActive = docsFilter === key;
+                            const label = key === 'all' ? 'All' : key === 'has-docs' ? 'Has Docs' : 'No Docs';
+                            const count = docCounts[key];
+                            return (
+                              <button
+                                key={key}
+                                onClick={() => setDocsFilter(key)}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  padding: '5px 14px',
+                                  borderRadius: 20,
+                                  border: isActive ? '1.5px solid #4F46E5' : '1.5px solid #E2E0D8',
+                                  backgroundColor: isActive ? '#4F46E5' : '#FFFFFF',
+                                  color: isActive ? '#FFFFFF' : '#64748B',
+                                  fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                                  fontSize: '0.8125rem',
+                                  fontWeight: isActive ? 600 : 400,
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {label}
+                                <span
+                                  style={{
+                                    fontFamily: 'JetBrains Mono, monospace',
+                                    fontSize: '0.6875rem',
+                                    backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : '#F3F1EE',
+                                    borderRadius: 10,
+                                    padding: '1px 7px',
+                                    color: isActive ? '#FFFFFF' : '#94A3B8',
+                                    minWidth: 18,
+                                    textAlign: 'center',
+                                  }}
+                                >
+                                  {count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {/* PM filter */}
                     {pmList.length > 0 && (
@@ -947,7 +655,7 @@ export default function App() {
                           </span>
                           <select
                             value={pmFilter}
-                            onChange={(e) => { setPMFilter(e.target.value); setReadinessFilter('all'); }}
+                            onChange={(e) => { setPMFilter(e.target.value); }}
                             style={{
                               fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
                               fontSize: '0.8125rem',
@@ -974,26 +682,26 @@ export default function App() {
               </div>
 
               {/* Content */}
-              <div style={{ padding: '20px' }}>
+              <div style={{ padding: '20px 0' }}>
                 {viewMode === 'cards' ? (
                   <RecordList
-                    headers={validation.headers}
+                    headers={displayHeaders}
                     rows={filteredProjectRows}
                     selectedRow={selectedRow}
                     onRowClick={handleRowClick}
                   />
-                ) : viewMode === 'kanban' ? (
-                  <KanbanBoard
-                    headers={validation.headers}
+                ) : viewMode === 'details' ? (
+                  <ProjectDetailsView
+                    headers={displayHeaders}
                     rows={filteredProjectRows}
                     selectedRow={selectedRow}
                     onRowClick={handleRowClick}
+                    disableDocs={disableDocs}
                   />
                 ) : (
-                  <DataTable
-                    headers={validation.headers}
+                  <Dashboard
+                    headers={displayHeaders}
                     rows={filteredProjectRows}
-                    selectedRow={selectedRow}
                     onRowClick={handleRowClick}
                   />
                 )}
@@ -1004,12 +712,15 @@ export default function App() {
       </main>
 
       {/* ── Row detail drawer ──────────────────────────────────────────── */}
-      <RowDrawer
-        row={selectedRow}
-        headers={headers}
-        isOpen={drawerOpen}
-        onClose={handleDrawerClose}
-      />
+      {viewMode !== 'details' && (
+        <RowDrawer
+          row={selectedRow}
+          headers={headers}
+          isOpen={drawerOpen}
+          onClose={handleDrawerClose}
+          disableDocs={disableDocs}
+        />
+      )}
 
       {/* ── Upload preview modal ──────────────────────────────────────── */}
       {pendingFile && (

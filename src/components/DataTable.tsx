@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { ChangeEvent } from 'react';
+import { flagKind } from '../utils/fieldCategoriser';
 
 interface DataTableProps {
   headers: string[];
@@ -28,11 +29,12 @@ function isUrl(value: string): boolean {
   return /^https?:\/\//i.test(value.trim());
 }
 
-/** Render a cell value: URLs become links, X/- flags get styled chips. */
+/** Render a cell value: URLs become links, flags get styled chips (supports "Completed", Greek ΝΑΙ/ΟΧΙ, emojis, etc.). */
 function CellContent({ value }: { value: unknown }) {
   const str = cellString(value);
   if (str === '') return <span style={{ color: '#CBD5E1' }}>—</span>;
 
+  // URL values → link
   if (isUrl(str)) {
     return (
       <a
@@ -44,17 +46,21 @@ function CellContent({ value }: { value: unknown }) {
           textDecoration: 'underline',
           textDecorationStyle: 'dotted',
           textUnderlineOffset: 3,
-          whiteSpace: 'nowrap',
+          wordBreak: 'break-all',
+          overflowWrap: 'anywhere',
         }}
         onClick={(e) => e.stopPropagation()}
         title={str}
       >
-        Link ↗
+        {str}
       </a>
     );
   }
 
-  if (str === 'X') {
+  // Unified flag rendering via shared categoriser
+  const fk = flagKind(value);
+
+  if (fk === 'active') {
     return (
       <span
         style={{
@@ -73,11 +79,11 @@ function CellContent({ value }: { value: unknown }) {
     );
   }
 
-  if (str === '-' || str === '_') {
+  if (fk === 'empty') {
     return <span style={{ color: '#CBD5E1' }}>–</span>;
   }
 
-  if (str === 'Y' || str.toUpperCase() === 'YES') {
+  if (fk === 'yes') {
     return (
       <span
         style={{
@@ -91,12 +97,12 @@ function CellContent({ value }: { value: unknown }) {
           border: '1px solid #BBF7D0',
         }}
       >
-        Y
+        {str}
       </span>
     );
   }
 
-  if (str === 'N' || str.toUpperCase() === 'NO') {
+  if (fk === 'no') {
     return (
       <span
         style={{
@@ -110,11 +116,12 @@ function CellContent({ value }: { value: unknown }) {
           border: '1px solid #FED7AA',
         }}
       >
-        N
+        {str}
       </span>
     );
   }
 
+  // Fallback: raw text
   return <>{str}</>;
 }
 
@@ -468,50 +475,43 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
       <div
         style={{
           overflowX: 'auto',
-          border: '1px solid #E2E0D8',
-          borderRadius: 12,
-          backgroundColor: '#FFFFFF',
+          paddingTop: 4,
+          paddingBottom: 4,
+          backgroundColor: 'transparent',
         }}
       >
         <table
           style={{
             width: '100%',
-            borderCollapse: 'collapse',
+            borderCollapse: 'separate',
+            borderSpacing: '0 10px',
             fontFamily: 'JetBrains Mono, monospace',
             fontSize: '0.8125rem',
           }}
         >
           {/* Header */}
           <thead>
-            <tr style={{ backgroundColor: '#F3F1EE', borderBottom: '2px solid #E2E0D8' }}>
+            <tr style={{ backgroundColor: 'transparent' }}>
               {visibleHeaders.map((header, colIdx) => {
                 const isActive = sort?.column === header;
                 const isFirst = colIdx === 0;
+                const isLast = colIdx === visibleHeaders.length - 1;
                 return (
                   <th
                     key={header}
                     onClick={() => handleSort(header)}
                     style={{
-                      padding: '11px 16px',
+                      padding: '8px 12px',
                       textAlign: 'left',
                       fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-                      fontWeight: 600,
-                      fontSize: '0.75rem',
-                      color: isActive ? '#0D9488' : '#1F2937',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
+                      fontWeight: 500,
+                      fontSize: '0.8125rem',
+                      color: isActive ? '#0D9488' : '#64748B',
                       cursor: 'pointer',
                       userSelect: 'none',
                       whiteSpace: 'nowrap',
-                      borderRight: '1px solid #E2E0D8',
-                      // Sticky first column
-                      ...(isFirst && {
-                        position: 'sticky',
-                        left: 0,
-                        zIndex: 2,
-                        backgroundColor: '#F3F1EE',
-                        boxShadow: '2px 0 4px -1px rgba(0,0,0,0.06)',
-                      }),
+                      ...(isFirst && { paddingLeft: 0 }),
+                      ...(isLast && { paddingRight: 0 }),
                     }}
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -543,18 +543,15 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
             ) : (
               visibleRows.map((row, rowIdx) => {
                 const isSelected = row === selectedRow;
-                const rowBg = isSelected ? '#EBF5F5' : rowIdx % 2 === 0 ? '#FFFFFF' : '#F9F8F6';
-                const hoverBg = isSelected ? '#D6ECEC' : '#EEF0F8';
+                const rowBg = 'transparent';
+                const hoverBg = 'transparent';
                 return (
                   <tr
                     key={rowIdx}
                     onClick={() => onRowClick?.(row)}
                     style={{
-                      borderBottom: '1px solid #E2E0D8',
                       backgroundColor: rowBg,
-                      borderLeft: isSelected ? '3px solid #0D9488' : '3px solid transparent',
                       cursor: onRowClick ? 'pointer' : 'default',
-                      transition: 'background-color 0.1s',
                     }}
                     onMouseEnter={(e) =>
                       ((e.currentTarget as HTMLTableRowElement).style.backgroundColor = hoverBg)
@@ -565,32 +562,34 @@ export default function DataTable({ headers, rows, selectedRow, onRowClick }: Da
                   >
                     {visibleHeaders.map((header, colIdx) => {
                       const isFirst = colIdx === 0;
+                      const isLast = colIdx === visibleHeaders.length - 1;
                       const strVal = cellString(row[header]);
                       return (
                         <td
                           key={header}
                           style={{
-                            padding: '9px 16px',
+                            padding: '6px 12px',
                             color: '#1F2937',
-                            borderRight: '1px solid #E2E0D8',
-                            maxWidth: isFirst ? 80 : 260,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            // Sticky first column
-                            ...(isFirst && {
-                              position: 'sticky',
-                              left: 0,
-                              backgroundColor: rowBg,
-                              boxShadow: '2px 0 4px -1px rgba(0,0,0,0.06)',
-                              zIndex: 1,
-                              fontWeight: 600,
-                              color: isSelected ? '#0D9488' : '#64748B',
-                            }),
+                            whiteSpace: 'normal',
+                            wordBreak: 'break-word',
+                            overflow: 'visible',
+                            textOverflow: 'unset',
+                            maxWidth: 'none',
+                            verticalAlign: 'top',
+                            ...(isFirst && { paddingLeft: 0 }),
+                            ...(isLast && { paddingRight: 0 }),
                           }}
                           title={strVal}
                         >
-                          {isFirst ? strVal : <CellContent value={row[header]} />}
+                          {isFirst ? (
+                            <div style={{ backgroundColor: '#FAFAFA', border: '1px solid #E5E7EB', borderRadius: 10, padding: '8px 10px', boxShadow: '0 1px 1px rgba(15,23,42,0.04)' }}>
+                              {strVal}
+                            </div>
+                          ) : (
+                            <div style={{ backgroundColor: '#FAFAFA', border: '1px solid #E5E7EB', borderRadius: 10, padding: '8px 10px', boxShadow: '0 1px 1px rgba(15,23,42,0.04)' }}>
+                              <CellContent value={row[header]} />
+                            </div>
+                          )}
                         </td>
                       );
                     })}

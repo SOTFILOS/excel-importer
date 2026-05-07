@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
-import { cellStr } from './fieldCategoriser';
+import { cellStr, flagKind } from './fieldCategoriser';
+import { isBlacklistedHeader } from './constants';
 
 export type ProjectStatus = 'Completed' | 'In Progress' | 'Delayed';
 
@@ -35,7 +36,29 @@ export function findProgressColumn(headers: string[]): string | null {
 }
 
 export function findNameColumn(headers: string[]): string | null {
-  return findCol(headers, ['project name', 'initiative', 'project title', 'name', 'title']);
+  const lower = headers.map((h) => h.toLowerCase());
+  const blocked = (s: string) =>
+    /\btitle\b/.test(s) || ((s.includes('tech') || s.includes('teck')) && s.includes('team'));
+
+  // 1) Item Description
+  let idx = lower.findIndex(
+    (h) => h.includes('item') && (h.includes('descr') || h.includes('description')) && !blocked(h)
+  );
+  if (idx !== -1) return headers[idx];
+
+  // 2) Project Name
+  idx = lower.findIndex((h) => h.includes('project') && h.includes('name') && !blocked(h));
+  if (idx !== -1) return headers[idx];
+
+  // 3) Initiative
+  idx = lower.findIndex((h) => h.includes('initiative') && !blocked(h));
+  if (idx !== -1) return headers[idx];
+
+  // 4) Generic Name (avoid Tech/Teck Team Name)
+  idx = lower.findIndex((h) => (h === 'name' || h.includes('name')) && !blocked(h));
+  if (idx !== -1) return headers[idx];
+
+  return null;
 }
 
 // ── Date parsing ─────────────────────────────────────────────────────────────
@@ -59,9 +82,10 @@ function parseDate(value: unknown): Date | null {
 function computeYNProgress(headers: string[], row: Record<string, unknown>): number | null {
   let yes = 0, no = 0;
   headers.forEach((h) => {
-    const v = String(row[h] ?? '').trim().toUpperCase();
-    if (v === 'Y' || v === 'YES') yes++;
-    else if (v === 'N' || v === 'NO') no++;
+    if (isBlacklistedHeader(h)) return;
+    const kind = flagKind(row[h]);
+    if (kind === 'yes') yes++;
+    else if (kind === 'no') no++;
   });
   const total = yes + no;
   return total > 0 ? Math.round((yes / total) * 100) : null;
@@ -72,17 +96,66 @@ function getProjectName(
   row: Record<string, unknown>,
   nameCol: string | null
 ): string {
+  const lc = (s: string) => s.toLowerCase();
+  const blocked = (s: string) =>
+    /\btitle\b/.test(s) || ((s.includes('tech') || s.includes('teck')) && s.includes('team'));
+  const isBizDesc = (s: string) =>
+    s.includes('σαφή') && s.includes('επιχειρησιακ') && s.includes('περιγραφ') && s.includes('αλλαγ');
+ 
+  // Primary from provided name column if available
+  let primary = '';
   if (nameCol) {
     const v = cellStr(row[nameCol]).trim();
-    if (v) return v;
+    if (v) primary = v;
   }
-  for (const h of headers) {
-    const v = cellStr(row[h]).trim();
-    if (v && isNaN(Number(v)) && !v.includes('@') && v.length > 1 && v.length <= 80) {
-      return v;
+ 
+  // Explicit precedence if not set yet:
+  // Item Description > Project Name > PBI Id > AfterCare/Redmine Id
+  if (!primary) {
+    const lower = headers.map(lc);
+    const preferOrder: ((s: string) => boolean)[] = [
+      (h) => h.includes('item') && (h.includes('descr') || h.includes('description')),
+      (h) => h.includes('project') && h.includes('name'),
+      (h) => /\bpbi\b/.test(h),
+      (h) =>
+        ((h.includes('redmine') || h.includes('ticket')) && h.includes('id')) ||
+        (h.includes('after') && h.includes('care') && (h.includes('id') || h.includes('redmine'))),
+    ];
+    for (const predicate of preferOrder) {
+      const idx = lower.findIndex((h) => predicate(h) && !blocked(h));
+      if (idx !== -1) {
+        const v = cellStr(row[headers[idx]]).trim();
+        if (v) { primary = v; break; }
+      }
     }
   }
-  return 'Project';
+ 
+  // Generic fallback: first reasonable non-numeric, excluding blocked headers
+  if (!primary) {
+    for (let i = 0; i < headers.length; i++) {
+      const h = headers[i];
+      const hl = lc(h);
+      if (blocked(hl)) continue;
+      const v = cellStr(row[h]).trim();
+      if (v && isNaN(Number(v)) && !v.includes('@') && v.length > 1 && v.length <= 80) {
+        primary = v;
+        break;
+      }
+    }
+  }
+ 
+  // Append business description (Greek) if present
+  let biz = '';
+  for (const h of headers) {
+    const hl = lc(h);
+    if (isBizDesc(hl)) {
+      const v = cellStr(row[h]).trim();
+      if (v) { biz = v; break; }
+    }
+  }
+ 
+  const name = [primary || 'Project', biz].filter(Boolean).join(' + ');
+  return name;
 }
 
 // ── Main enrichment ──────────────────────────────────────────────────────────
@@ -161,8 +234,9 @@ export function getRadarAxes(
   const freq: Record<string, number> = {};
   rows.forEach((row) =>
     headers.forEach((h) => {
-      const v = String(row[h] ?? '').trim().toUpperCase();
-      if (v === 'Y' || v === 'YES' || v === 'N' || v === 'NO') {
+      if (isBlacklistedHeader(h)) return;
+      const kind = flagKind(row[h]);
+      if (kind === 'yes' || kind === 'no') {
         freq[h] = (freq[h] ?? 0) + 1;
       }
     })
@@ -180,9 +254,9 @@ export function getRadarData(
   return axes.map((h) => {
     let yes = 0, total = 0;
     rows.forEach((row) => {
-      const v = String(row[h] ?? '').trim().toUpperCase();
-      if (v === 'Y' || v === 'YES') { yes++; total++; }
-      else if (v === 'N' || v === 'NO') total++;
+      const kind = flagKind(row[h]);
+      if (kind === 'yes') { yes++; total++; }
+      else if (kind === 'no') { total++; }
     });
     const label = h
       .replace(/\s*\([Yy]\/[Nn]\)/g, '')

@@ -30,11 +30,10 @@ interface KanbanCardProps {
   row: Record<string, unknown>;
   isSelected: boolean;
   onClick: () => void;
-  pct: number | null;
   bucket: ReadinessBucket;
 }
 
-function KanbanCard({ headers, row, isSelected, onClick, pct, bucket }: KanbanCardProps) {
+function KanbanCard({ headers, row, isSelected, onClick, bucket }: KanbanCardProps) {
   const c = buildCardContent(headers, row);
   const cfg = BUCKET_CONFIG[bucket];
 
@@ -82,8 +81,18 @@ function KanbanCard({ headers, row, isSelected, onClick, pct, bucket }: KanbanCa
         }
       }}
     >
-      {/* ID + Title */}
+      {/* Title + ID */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+        <span style={{
+          fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.8125rem', fontWeight: 700,
+          color: '#000000', flex: 1,
+          overflow: 'hidden',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical' as const,
+        }}>
+          {c.title}
+        </span>
         {c.id && (
           <span style={{
             fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', fontWeight: 700,
@@ -93,16 +102,6 @@ function KanbanCard({ headers, row, isSelected, onClick, pct, bucket }: KanbanCa
             #{c.id}
           </span>
         )}
-        <span style={{
-          fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.8125rem', fontWeight: 600,
-          color: '#0F172A', flex: 1,
-          overflow: 'hidden',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical' as const,
-        }}>
-          {c.title}
-        </span>
       </div>
 
       {/* Detail snippet */}
@@ -129,24 +128,6 @@ function KanbanCard({ headers, row, isSelected, onClick, pct, bucket }: KanbanCa
         </span>
       )}
 
-      {/* Progress bar */}
-      {pct !== null && (
-        <div>
-          <div style={{ height: 4, backgroundColor: '#F3F1EE', borderRadius: 99, overflow: 'hidden' }}>
-            <div style={{
-              height: '100%', width: `${pct}%`,
-              backgroundColor: cfg.color, borderRadius: 99,
-            }} />
-          </div>
-          <span style={{
-            fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem',
-            fontWeight: 700, color: cfg.color,
-            display: 'block', marginTop: 3, textAlign: 'right',
-          }}>
-            {pct}%
-          </span>
-        </div>
-      )}
     </div>
   );
 }
@@ -232,7 +213,6 @@ export default function KanbanBoard({ headers, rows, selectedRow, onRowClick }: 
                   row={row}
                   isSelected={row === selectedRow}
                   onClick={() => onRowClick(row)}
-                  pct={pct}
                   bucket={bucket}
                 />
               ))}

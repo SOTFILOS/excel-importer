@@ -1,11 +1,11 @@
 /**
  * Row validation utilities for generic Excel datasets.
  * Adds two computed columns to rows in-place:
- * - Row Number
+ * - Index (Row Number)
  * - Status ("Valid" | "Error")
  *
  * It also returns a reordered headers array that prioritizes:
- * Row Number, Full Name, Email Address, Phone Number, Tax ID, Category, Status
+ * Index (Row Number), Full Name, Email Address, Phone Number, Tax ID, Category, Status
  */
 
 export type RecordStatus = 'Valid' | 'Error';
@@ -70,7 +70,7 @@ function isNonEmpty(s: string): boolean {
 
 /**
  * Apply validation to the given rows in-place, adding:
- * - "Row Number"
+ * - "Index" (Row Number)
  * - "Status" ("Valid" | "Error")
  *
  * Returns headers reordered to surface the common business columns and the computed ones.
@@ -87,10 +87,10 @@ export function applyValidation(
   const categoryCol = findCol(headers, ['category', 'type', 'group', 'segment']);
 
   // Ensure computed column names don't collide
-  let rowNumberHeader = 'Row Number';
+  let rowNumberHeader = 'Index';
   let statusHeader = 'Status';
   const lower = headers.map((h) => h.toLowerCase());
-  if (lower.includes(rowNumberHeader.toLowerCase())) rowNumberHeader = 'Row No.';
+  if (lower.includes(rowNumberHeader.toLowerCase())) rowNumberHeader = 'Index (2)';
   if (lower.includes(statusHeader.toLowerCase())) statusHeader = 'Status (Validation)';
 
   // Compute and annotate rows

@@ -7,6 +7,7 @@ import {
   type PaletteColor,
 } from '../utils/fieldCategoriser';
 import { DOC_COL_HEADER } from '../utils/constants';
+import { DOC_KEYWORDS, DOC_DOMAINS } from '../utils/docUtils';
 
 interface RecordListProps {
   headers: string[];
@@ -76,41 +77,6 @@ function TypeBadge({ value, color }: { value: string; color: PaletteColor }) {
   );
 }
 
-// ── Progress bar ──────────────────────────────────────────────────────────────
-
-function ReadinessBar({ pct }: { pct: number }) {
-  const color =
-    pct >= 70
-      ? { bar: 'linear-gradient(90deg, #059669, #34D399)', text: '#059669' }
-      : pct >= 40
-      ? { bar: 'linear-gradient(90deg, #D97706, #FCD34D)', text: '#D97706' }
-      : { bar: 'linear-gradient(90deg, #E11D48, #FB7185)', text: '#E11D48' };
-
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-        <span style={{
-          fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.5625rem', fontWeight: 700,
-          textTransform: 'uppercase', letterSpacing: '0.09em', color: '#94A3B8',
-        }}>
-          Readiness
-        </span>
-        <span style={{
-          fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem',
-          fontWeight: 700, color: color.text,
-        }}>
-          {pct}%
-        </span>
-      </div>
-      <div style={{ height: 5, backgroundColor: '#EEF0F8', borderRadius: 99, overflow: 'hidden' }}>
-        <div
-          className="progress-bar"
-          style={{ height: '100%', width: `${pct}%`, borderRadius: 99, background: color.bar }}
-        />
-      </div>
-    </div>
-  );
-}
 
 // ── Single record card ────────────────────────────────────────────────────────
 
@@ -130,8 +96,6 @@ function RecordCard({ headers, row, isSelected, onClick, index, cardSize, hidden
   const border = c.paletteColor.border;
 
   const totalFlags = c.yesChips.length + c.noChips.length;
-  const progressPct = totalFlags > 0 ? Math.round((c.yesChips.length / totalFlags) * 100) : null;
-
   const detailLine = c.details
     .map((d) => d.value)
     .filter((v) => v.length <= 50)
@@ -144,6 +108,19 @@ function RecordCard({ headers, row, isSelected, onClick, index, cardSize, hidden
 
   const docUrl = cellStr((row as any)[DOC_COL_HEADER]).trim();
   const showDocChip = !!docUrl && !hiddenFields.has(DOC_COL_HEADER);
+
+  const looksLikeDocLink = (href: string): boolean => {
+    const url = href.trim().toLowerCase();
+    if (!url) return false;
+    return DOC_DOMAINS.some((d) => url.includes(d)) || DOC_KEYWORDS.some((k) => url.includes(k));
+  };
+
+  const filteredLinks = c.links.filter((link) => {
+    const href = link.url.trim();
+    if (!href) return false;
+    if (docUrl && href.toLowerCase() === docUrl.toLowerCase()) return false;
+    return !looksLikeDocLink(href);
+  });
 
   const showDetails = cardSize !== 'S' && Boolean(detailLine);
   const showChips = cardSize === 'L' && hasChips;
@@ -199,6 +176,12 @@ function RecordCard({ headers, row, isSelected, onClick, index, cardSize, hidden
         {/* Row 1: ID + Title + Type badge */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
+            <span style={{
+              fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.9375rem', fontWeight: 700,
+              color: '#000000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+            }}>
+              {c.title}
+            </span>
             {c.id && (
               <span style={{
                 fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 700,
@@ -209,12 +192,6 @@ function RecordCard({ headers, row, isSelected, onClick, index, cardSize, hidden
                 #{c.id}
               </span>
             )}
-            <span style={{
-              fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.9375rem', fontWeight: 700,
-              color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-            }}>
-              {c.title}
-            </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {c.typeBadge && <TypeBadge value={c.typeBadge} color={c.paletteColor} />}
@@ -248,9 +225,6 @@ function RecordCard({ headers, row, isSelected, onClick, index, cardSize, hidden
           </p>
         )}
 
-        {/* Readiness bar */}
-        {progressPct !== null && <ReadinessBar pct={progressPct} />}
-
         {/* Chips – only in L mode */}
         {showChips && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
@@ -263,7 +237,7 @@ function RecordCard({ headers, row, isSelected, onClick, index, cardSize, hidden
             )}
             {c.yesChips.map((chip) => <StatusChip key={chip} label={chip} isYes={true} />)}
             {c.noChips.map((chip) => <StatusChip key={chip} label={chip} isYes={false} />)}
-            {c.links.map((link) => (
+            {filteredLinks.map((link) => (
               <a
                 key={link.label}
                 href={link.url}
@@ -320,13 +294,6 @@ function CompactRow({
   onClick: () => void;
 }) {
   const c = buildCardContent(headers, row);
-  const totalFlags = c.yesChips.length + c.noChips.length;
-  const pct = totalFlags > 0 ? Math.round((c.yesChips.length / totalFlags) * 100) : null;
-  const barColor =
-    pct === null ? '#E2E0D8'
-    : pct >= 70 ? '#22C55E'
-    : pct >= 40 ? '#F59E0B'
-    : '#EF4444';
 
   const detailItems = c.details.filter((d) => d.value.length <= 60).slice(0, 5);
   const docUrl = cellStr((row as any)[DOC_COL_HEADER]).trim();
@@ -352,6 +319,12 @@ function CompactRow({
       {/* Top row: dot + ID + title + type + readiness */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: c.paletteColor.accent, flexShrink: 0 }} />
+        <span style={{
+          fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '1rem', fontWeight: 700,
+          color: '#000000', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {c.title}
+        </span>
         {c.id && (
           <span style={{
             fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 700,
@@ -362,12 +335,6 @@ function CompactRow({
             #{c.id}
           </span>
         )}
-        <span style={{
-          fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '1rem', fontWeight: 700,
-          color: '#0F172A', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {c.title}
-        </span>
         {c.typeBadge && (
           <span style={{
             fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.5625rem', fontWeight: 700,
@@ -396,23 +363,10 @@ function CompactRow({
             Docs ↗
           </a>
         )}
-        {pct !== null && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <div style={{ width: 90, height: 5, backgroundColor: '#F3F1EE', borderRadius: 99, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${pct}%`, backgroundColor: barColor, borderRadius: 99 }} />
-            </div>
-            <span style={{
-              fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem',
-              fontWeight: 700, color: barColor, minWidth: 32,
-            }}>
-              {pct}%
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Bottom row: detail fields + yes/no summary */}
-      {(detailItems.length > 0 || totalFlags > 0 || c.systemChips.length > 0) && (
+      {(detailItems.length > 0 || c.systemChips.length > 0) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingLeft: 18, flexWrap: 'wrap' }}>
           {detailItems.map((d) => (
             <span key={d.label} style={{
@@ -423,22 +377,6 @@ function CompactRow({
               <span style={{ color: '#1E293B', fontWeight: 700 }}>{d.value}</span>
             </span>
           ))}
-          {totalFlags > 0 && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <span style={{
-                fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 700,
-                color: '#16A34A',
-              }}>
-                ✓ {c.yesChips.length}
-              </span>
-              <span style={{
-                fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 700,
-                color: '#C2410C',
-              }}>
-                ✗ {c.noChips.length}
-              </span>
-            </span>
-          )}
           {c.systemChips.length > 0 && (
             <span style={{
               fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.6875rem', color: '#6366F1',

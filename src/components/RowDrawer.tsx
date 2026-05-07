@@ -1,10 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import { DOC_COL_HEADER } from '../utils/constants';
+import { findDocumentationUrl, DOC_KEYWORDS, DOC_DOMAINS } from '../utils/docUtils';
 
 interface RowDrawerProps {
   row: Record<string, unknown> | null;
   headers: string[];
   isOpen: boolean;
   onClose: () => void;
+  disableDocs?: boolean;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -72,22 +75,86 @@ function buildSections(headers: string[], row: Record<string, unknown>): DrawerS
     }
   });
 
-  // Title = first short non-numeric kv value
-  let title = '';
-  let id = '';
-  for (const item of kvItems) {
-    const s = cellStr(item.value).trim();
-    if (!id && !isNaN(Number(s)) && s !== '') {
-      id = s;
-      continue;
-    }
-    if (!title && s.length > 0 && s.length <= 60 && isNaN(Number(s))) {
-      title = s;
-    }
-    if (id && title) break;
+  const lc = (s: string) => s.trim().toLowerCase();
+  const hasValue = (v: unknown) => {
+    const s = cellStr(v).trim();
+    return s !== '';
+  };
+
+  // Build title as: Item Description OR Project Name OR PBI Id OR AfterCare/Redmine Id
+  // + 'σαφή επιχειρησιακή περιγραφή των αλλαγών που υλοποιούνται' (if present)
+  const isItemDesc = (hl: string) => hl.includes('item') && (hl.includes('descr') || hl.includes('description'));
+  const isProjectName = (hl: string) => hl.includes('project') && hl.includes('name');
+  const isPBI = (hl: string) => /\bpbi\b/.test(hl);
+  const isRedmineId = (hl: string) =>
+    ((hl.includes('redmine') || hl.includes('ticket')) && hl.includes('id')) ||
+    (hl.includes('after') && hl.includes('care') && (hl.includes('id') || hl.includes('redmine')));
+  const isBizDesc = (hl: string) =>
+    hl.includes('σαφή') && hl.includes('επιχειρησιακ') && hl.includes('περιγραφ') && hl.includes('αλλαγ');
+  const isBlocked = (hl: string) =>
+    /\btitle\b/.test(hl) || ((hl.includes('tech') || hl.includes('teck')) && hl.includes('team'));
+
+  let itemDescVal = '', itemDescHeader: string | null = null;
+  let projNameVal = '', projNameHeader: string | null = null;
+  let pbiVal = '', pbiHeader: string | null = null;
+  let redmineVal = '', redmineHeader: string | null = null;
+  let bizDescVal = '', bizDescHeader: string | null = null;
+
+  for (const h of headers) {
+    const v = row[h];
+    if (!hasValue(v)) continue;
+    const s = cellStr(v).trim();
+    const hl = lc(h);
+    if (!bizDescVal && isBizDesc(hl)) { bizDescVal = s; bizDescHeader = h; continue; }
+    if (!itemDescVal && isItemDesc(hl)) { itemDescVal = s; itemDescHeader = h; continue; }
+    if (!projNameVal && isProjectName(hl)) { projNameVal = s; projNameHeader = h; continue; }
+    if (!pbiVal && isPBI(hl)) { pbiVal = s; pbiHeader = h; continue; }
+    if (!redmineVal && isRedmineId(hl)) { redmineVal = s; redmineHeader = h; continue; }
   }
 
-  return { id, title: title || 'Row', kvItems, activeSystems, statusItems, urlItems };
+  let primaryTitle = itemDescVal || projNameVal || pbiVal || redmineVal || '';
+  let titleHeader: string | null =
+    primaryTitle === itemDescVal ? itemDescHeader
+    : primaryTitle === projNameVal ? projNameHeader
+    : primaryTitle === pbiVal ? pbiHeader
+    : primaryTitle === redmineVal ? redmineHeader
+    : null;
+
+  // Fallback for title if still empty: first reasonable non-numeric, excluding blocked headers
+  if (!primaryTitle) {
+    for (const item of kvItems) {
+      const s = cellStr(item.value).trim();
+      const hl = lc(item.header);
+      if (s && !isNaN(Number(s))) continue;
+      if (s && !isBlocked(hl) && !s.includes('@') && s.length <= 80) {
+        primaryTitle = s;
+        titleHeader = item.header;
+        break;
+      }
+    }
+  }
+
+  // Compose final title with business description
+  const title = [primaryTitle || 'Row', bizDescVal].filter(Boolean).join(' + ');
+
+  // ID: prefer numeric PBI/Redmine, else first numeric from kvItems
+  let id = '';
+  if (pbiVal && !isNaN(Number(pbiVal))) id = pbiVal;
+  else if (redmineVal && !isNaN(Number(redmineVal))) id = redmineVal;
+  if (!id) {
+    for (const item of kvItems) {
+      const s = cellStr(item.value).trim();
+      if (s !== '' && !isNaN(Number(s))) { id = s; break; }
+    }
+  }
+
+  // Exclude used headers (title sources and biz desc) from Details
+  const used = new Set<string>();
+  if (titleHeader) used.add(titleHeader);
+  if (bizDescHeader && bizDescVal) used.add(bizDescHeader);
+  const filteredKvItems = kvItems.filter((it) => !used.has(it.header));
+
+  return { id, title, kvItems: filteredKvItems, activeSystems, statusItems, urlItems };
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -237,25 +304,17 @@ function StatusRow({ header, kind }: { header: string; kind: 'yes' | 'no' }) {
 
 // ── Status donut chart ────────────────────────────────────────────────────────
 
-function StatusDonut({ yesCount, noCount }: { yesCount: number; noCount: number }) {
-  const total = yesCount + noCount;
-  if (total === 0) return null;
-
-  const r = 28;
-  const sw = 7;
-  const cx = 38;
-  const cy = 38;
-  const size = 76;
-  const circumference = 2 * Math.PI * r;
-  const yesDash = (yesCount / total) * circumference;
-  const yesPct = Math.round((yesCount / total) * 100);
+/** Systems summary with names for the project */
+function SystemsCount({ names }: { names: string[] }) {
+  const count = names.length;
+  if (count <= 0) return null;
 
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 20,
+        gap: 16,
         backgroundColor: '#F3F1EE',
         border: '1px solid #E2E0D8',
         borderRadius: 14,
@@ -263,113 +322,65 @@ function StatusDonut({ yesCount, noCount }: { yesCount: number; noCount: number 
         marginBottom: 18,
       }}
     >
-      {/* Donut */}
-      <div style={{ position: 'relative', flexShrink: 0 }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
-          {/* Track (no segment) */}
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="#FED7AA" strokeWidth={sw} />
-          {/* Yes arc */}
-          <circle
-            cx={cx}
-            cy={cy}
-            r={r}
-            fill="none"
-            stroke="#16A34A"
-            strokeWidth={sw}
-            strokeLinecap="round"
-            strokeDasharray={`${yesDash} ${circumference}`}
-            className="donut-arc"
-            style={{
-              transform: `rotate(-90deg)`,
-              transformOrigin: `${cx}px ${cy}px`,
-            }}
-          />
-        </svg>
-        {/* Center % label */}
-        <div
+      {/* Circular badge with count */}
+      <div
+        style={{
+          width: 76,
+          height: 76,
+          borderRadius: '50%',
+          backgroundColor: '#FFFFFF',
+          border: '7px solid #0D9488',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: 'inset 0 0 0 2px #C6E4E4',
+          flexShrink: 0,
+        }}
+      >
+        <span
           style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 1,
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: '1rem',
+            fontWeight: 700,
+            color: '#0F172A',
+            lineHeight: 1,
           }}
         >
-          <span
-            style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: '0.9375rem',
-              fontWeight: 700,
-              color: '#0F172A',
-              lineHeight: 1,
-            }}
-          >
-            {yesPct}%
-          </span>
-          <span
-            style={{
-              fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-              fontSize: '0.5625rem',
-              color: '#94A3B8',
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-            }}
-          >
-            ready
-          </span>
-        </div>
+          {count}
+        </span>
       </div>
 
-      {/* Legend */}
+      {/* Labels + names */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <p
-          style={{
-            fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-            fontSize: '0.625rem',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            color: '#94A3B8',
-            margin: 0,
-          }}
-        >
-          Status Breakdown
-        </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span
+        <div>
+          <p
             style={{
-              width: 9,
-              height: 9,
-              borderRadius: '50%',
-              backgroundColor: '#16A34A',
-              flexShrink: 0,
+              fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+              fontSize: '0.625rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: '#94A3B8',
+              margin: 0,
             }}
-          />
-          <span
-            style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.8125rem', color: '#1F2937' }}
           >
-            Supported{' '}
-            <strong style={{ color: '#16A34A' }}>{yesCount}</strong>
-          </span>
+            Systems
+          </p>
+          <p
+            style={{
+              fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+              fontSize: '0.8125rem',
+              color: '#1F2937',
+              margin: 0,
+            }}
+          >
+            Names of systems referenced by this project
+          </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span
-            style={{
-              width: 9,
-              height: 9,
-              borderRadius: '50%',
-              backgroundColor: '#C2410C',
-              flexShrink: 0,
-            }}
-          />
-          <span
-            style={{ fontFamily: 'Roboto, Arial, Helvetica, sans-serif', fontSize: '0.8125rem', color: '#1F2937' }}
-          >
-            Missing{' '}
-            <strong style={{ color: '#C2410C' }}>{noCount}</strong>
-          </span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {names.map((label) => (
+            <SystemChip key={label} label={label} />
+          ))}
         </div>
       </div>
     </div>
@@ -429,7 +440,7 @@ function UrlCard({ header, value }: { header: string; value: unknown }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerProps) {
+export default function RowDrawer({ row, headers, isOpen, onClose, disableDocs }: RowDrawerProps) {
   // Close on Escape
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
@@ -441,6 +452,40 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
 
   // Always render so the close animation plays correctly
   const sections = row ? buildSections(headers, row) : null;
+
+  // Documentation quick access state, derived from the row
+  const initialDoc = useMemo(() => {
+    if (!row) return '';
+    if (disableDocs) return '';
+    const fromCol = cellStr((row as any)[DOC_COL_HEADER] ?? '').trim();
+    if (fromCol) return fromCol;
+    return findDocumentationUrl(headers, row) ?? '';
+  }, [row, headers, disableDocs]);
+
+  const [docInput, setDocInput] = useState<string>(initialDoc);
+  useEffect(() => { setDocInput(initialDoc); }, [initialDoc]);
+
+  function normalizeUrlLocal(input: string): string {
+    const t = input.trim();
+    if (!t) return '';
+    if (/^https?:\/\//i.test(t)) return t;
+    if (/^[\w.-]+\.[a-z]{2,}([/:?].*)?$/i.test(t)) return `https://${t}`;
+    return t;
+  }
+
+  function looksLikeDocumentationUrl(input: string): boolean {
+    const url = input.trim().toLowerCase();
+    if (!url) return false;
+    return DOC_DOMAINS.some((d) => url.includes(d)) || DOC_KEYWORDS.some((k) => url.includes(k));
+  }
+
+  const normalizedDocUrl = useMemo(() => normalizeUrlLocal(docInput), [docInput]);
+  const isValidDoc = useMemo(() => isUrl(normalizedDocUrl), [normalizedDocUrl]);
+  const openDocs = useCallback(() => {
+    if (isValidDoc && normalizedDocUrl) {
+      window.open(normalizedDocUrl, '_blank', 'noopener,noreferrer');
+    }
+  }, [isValidDoc, normalizedDocUrl]);
 
   return (
     <>
@@ -495,42 +540,21 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                 zIndex: 1,
               }}
             >
-              {/* Top row: ID badge + close button */}
+              {/* Top row: Title first + close button */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {sections.id && (
-                    <span
-                      style={{
-                        fontFamily: 'JetBrains Mono, monospace',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        color: '#FFFFFF',
-                        backgroundColor: '#0D9488',
-                        borderRadius: 6,
-                        padding: '3px 9px',
-                      }}
-                    >
-                      #{sections.id}
-                    </span>
-                  )}
-                  {/* Active system count badge */}
-                  {sections.activeSystems.length > 0 && (
-                    <span
-                      style={{
-                        fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-                        fontSize: '0.6875rem',
-                        fontWeight: 600,
-                        color: '#0D9488',
-                        backgroundColor: '#EBF5F5',
-                        border: '1px solid #C6E4E4',
-                        borderRadius: 20,
-                        padding: '2px 8px',
-                      }}
-                    >
-                      {sections.activeSystems.length} system{sections.activeSystems.length !== 1 ? 's' : ''} affected
-                    </span>
-                  )}
-                </div>
+                <h2
+                  style={{
+                    fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                    fontWeight: 700,
+                    fontSize: '1.0625rem',
+                    color: '#000000',
+                    margin: 0,
+                    lineHeight: 1.3,
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {sections.title}
+                </h2>
 
                 {/* Close button */}
                 <button
@@ -564,24 +588,134 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                 </button>
               </div>
 
-              {/* Title */}
-              <h2
-                style={{
-                  fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-                  fontWeight: 700,
-                  fontSize: '1.0625rem',
-                  color: '#0F172A',
-                  margin: 0,
-                  lineHeight: 1.3,
-                  wordBreak: 'break-word',
-                }}
-              >
-                {sections.title}
-              </h2>
+              {/* Meta row: ID badge + Active system count */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {sections.id && (
+                  <span
+                    style={{
+                      fontFamily: 'JetBrains Mono, monospace',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: '#FFFFFF',
+                      backgroundColor: '#0D9488',
+                      borderRadius: 6,
+                      padding: '3px 9px',
+                    }}
+                  >
+                    #{sections.id}
+                  </span>
+                )}
+                {/* Active system count badge */}
+                {sections.activeSystems.length > 0 && (
+                  <span
+                    style={{
+                      fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                      color: '#0D9488',
+                      backgroundColor: '#EBF5F5',
+                      border: '1px solid #C6E4E4',
+                      borderRadius: 20,
+                      padding: '2px 8px',
+                    }}
+                  >
+                    {sections.activeSystems.length} system{sections.activeSystems.length !== 1 ? 's' : ''} affected
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* ── Scrollable body ────────────────────────────────────── */}
             <div style={{ padding: '20px 24px', flex: 1 }}>
+              {/* DOCUMENTATION quick access */}
+              {!disableDocs && (
+                <div
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px dashed #C7D2FE',
+                    borderRadius: 12,
+                    padding: 12,
+                    marginBottom: 18,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span
+                      style={{
+                        fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                        fontSize: '0.8125rem',
+                        fontWeight: 700,
+                        color: '#4F46E5',
+                        letterSpacing: '0.02em',
+                      }}
+                    >
+                      Documentation
+                    </span>
+                    <button
+                      type="button"
+                      onClick={openDocs}
+                      disabled={!isValidDoc}
+                      style={{
+                        fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                        fontWeight: 600,
+                        fontSize: '0.8125rem',
+                        padding: '6px 10px',
+                        borderRadius: 8,
+                        border: 'none',
+                        cursor: isValidDoc ? 'pointer' : 'not-allowed',
+                        color: isValidDoc ? '#FFFFFF' : '#94A3B8',
+                        backgroundColor: isValidDoc ? '#4F46E5' : '#E2E0D8',
+                        transition: 'opacity 0.15s',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      }}
+                      aria-label="Open documentation link in a new tab"
+                      title={isValidDoc ? 'Open documentation' : 'Enter a valid URL to enable'}
+                    >
+                      Open ↗
+                    </button>
+                  </div>
+                  <input
+                    type="url"
+                    inputMode="url"
+                    placeholder="Paste documentation link or edit detected one…"
+                    value={docInput}
+                    onChange={(e) => setDocInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        openDocs();
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                      fontSize: '0.875rem',
+                      color: '#0F172A',
+                      border: `1.5px solid ${docInput ? (isValidDoc ? '#C7D2FE' : '#FCA5A5') : '#E2E0D8'}`,
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      outline: 'none',
+                      backgroundColor: '#FFFFFF',
+                    }}
+                    aria-invalid={!!docInput && !isValidDoc}
+                  />
+                  <p
+                    style={{
+                      margin: 0,
+                      fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
+                      fontSize: '0.75rem',
+                      color: docInput && !isValidDoc ? '#DC2626' : '#94A3B8',
+                    }}
+                  >
+                    {docInput && !isValidDoc
+                      ? 'Enter a valid URL starting with http(s) or a domain name.'
+                      : 'Tip: Press Enter to open immediately.'}
+                  </p>
+                </div>
+              )}
 
               {/* DETAILS section */}
               {sections.kvItems.length > 0 && (
@@ -593,66 +727,36 @@ export default function RowDrawer({ row, headers, isOpen, onClose }: RowDrawerPr
                 </>
               )}
 
-              {/* ACTIVE SYSTEMS section */}
+
+
+              {/* SYSTEMS summary */}
               {sections.activeSystems.length > 0 && (
                 <>
                   <Divider />
-                  <SectionLabel>Active Systems</SectionLabel>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {sections.activeSystems.map(({ header }) => (
-                      <SystemChip key={header} label={header} />
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* No active systems note */}
-              {sections.activeSystems.length === 0 && sections.statusItems.length > 0 && (
-                <>
-                  <Divider />
-                  <p
-                    style={{
-                      fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
-                      fontSize: '0.8125rem',
-                      color: '#94A3B8',
-                      fontStyle: 'italic',
-                      margin: 0,
-                    }}
-                  >
-                    No systems marked as affected.
-                  </p>
-                </>
-              )}
-
-              {/* STATUS section */}
-              {sections.statusItems.length > 0 && (
-                <>
-                  <Divider />
-                  <SectionLabel>Status</SectionLabel>
-                  <StatusDonut
-                    yesCount={sections.statusItems.filter(({ value }) => flagKind(value) === 'yes').length}
-                    noCount={sections.statusItems.filter(({ value }) => flagKind(value) === 'no').length}
-                  />
-                  <div>
-                    {sections.statusItems.map(({ header, value }) => {
-                      const kind = flagKind(value);
-                      if (kind !== 'yes' && kind !== 'no') return null;
-                      return <StatusRow key={header} header={header} kind={kind} />;
-                    })}
-                  </div>
+                  <SectionLabel>Systems</SectionLabel>
+                  <SystemsCount names={sections.activeSystems.map(({ header }) => header)} />
                 </>
               )}
 
               {/* LINKS section */}
-              {sections.urlItems.length > 0 && (
-                <>
-                  <Divider />
-                  <SectionLabel>Links</SectionLabel>
-                  {sections.urlItems.map(({ header, value }) => (
-                    <UrlCard key={header} header={header} value={value} />
-                  ))}
-                </>
-              )}
+              {(() => {
+                const otherLinks = sections.urlItems.filter(({ value }) => {
+                  const href = cellStr(value).trim();
+                  if (!href) return false;
+                  if (normalizedDocUrl && href.toLowerCase() === normalizedDocUrl.toLowerCase()) return false;
+                  return !looksLikeDocumentationUrl(href);
+                });
+                if (otherLinks.length === 0) return null;
+                return (
+                  <>
+                    <Divider />
+                    <SectionLabel>Links</SectionLabel>
+                    {otherLinks.map(({ header, value }) => (
+                      <UrlCard key={header} header={header} value={value} />
+                    ))}
+                  </>
+                );
+              })()}
 
               {/* Empty row fallback */}
               {sections.kvItems.length === 0 &&

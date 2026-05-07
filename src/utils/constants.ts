@@ -2,9 +2,29 @@
  * Shared constants and helpers for the Excel importer app.
  * Centralizes the Documentation URL header name and readiness computations.
  */
-import { cellStr } from './fieldCategoriser';
+import { cellStr, flagKind, cleanLabel } from './fieldCategoriser';
 
 export const DOC_COL_HEADER = 'Documentation URL';
+
+// Central blacklist of Y/N "criteria" headers that should be ignored across the app
+export const CRITERIA_BLACKLIST = new Set<string>([
+  'a/a',  'α/α',
+  'uat completed? (y/n)',
+  'operational monitoring changes',
+  'system unavailability required?',
+  'deployment dependency',
+  'sanity checks required?',
+  'rollback supported?',
+  'documentation',
+  'column 33',
+  'column 34',
+]);
+
+/** Normalised check if a header is blacklisted (uses cleanLabel + lower-case). */
+export function isBlacklistedHeader(header: string): boolean {
+  const cl = cleanLabel(header).trim().toLowerCase();
+  return CRITERIA_BLACKLIST.has(cl);
+}
 
 export type ReadinessBucket = 'on-track' | 'good' | 'attention' | 'at-risk' | 'no-data';
 
@@ -15,9 +35,10 @@ export type ReadinessBucket = 'on-track' | 'good' | 'attention' | 'at-risk' | 'n
 export function readinessPct(headers: string[], row: Record<string, unknown>): number | null {
   let yes = 0, no = 0;
   for (const h of headers) {
-    const v = cellStr(row[h]).trim().toUpperCase();
-    if (v === 'Y' || v === 'YES') yes++;
-    else if (v === 'N' || v === 'NO') no++;
+    if (isBlacklistedHeader(h)) continue;
+    const kind = flagKind(row[h]);
+    if (kind === 'yes') yes++;
+    else if (kind === 'no') no++;
   }
   const total = yes + no;
   return total > 0 ? Math.round((yes / total) * 100) : null;

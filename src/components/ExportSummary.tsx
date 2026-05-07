@@ -1,6 +1,6 @@
 import type { ExcelFile } from '../types/excel';
 import type { EnrichedRow } from '../utils/projectAnalytics';
-import { exportUpdatedExcel } from '../utils/projectAnalytics';
+import * as XLSX from 'xlsx';
 
 interface ExportSummaryProps {
   excelFile: ExcelFile;
@@ -37,6 +37,26 @@ function formatDateTime(d: Date | null | undefined): string {
   } catch {
     return d.toLocaleString();
   }
+}
+
+function exportExcelOriginal(
+  headers: string[],
+  rows: Record<string, unknown>[],
+  baseName: string,
+  sheetName: string
+): void {
+  const ws = XLSX.utils.json_to_sheet(
+    rows.map((row) => {
+      const obj: Record<string, unknown> = {};
+      headers.forEach((h) => { obj[h] = row[h] ?? ''; });
+      return obj;
+    }),
+    { header: headers }
+  );
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31));
+  const fileName = `${baseName}.xlsx`.replace(/[^\w._-]/g, '_');
+  XLSX.writeFile(wb, fileName);
 }
 
 function exportCSV(
@@ -116,8 +136,8 @@ export default function ExportSummary({
   rows,
   enrichedRows,
   onReset,
-  validCount,
-  errorCount,
+  validCount: _validCount,
+  errorCount: _errorCount,
   importDate,
 }: ExportSummaryProps) {
   const baseName = excelFile.fileName.replace(/\.[^.]+$/, '');
@@ -176,14 +196,6 @@ export default function ExportSummary({
         <MetaChip label="Projects" value={totalRows.toLocaleString()} />
         <Separator />
         <MetaChip label="Columns" value={totalColumns} />
-        {typeof validCount === 'number' && typeof errorCount === 'number' && (
-          <>
-            <Separator />
-            <MetaChip label="Valid Records" value={validCount.toLocaleString()} />
-            <Separator />
-            <MetaChip label="Records with Errors" value={errorCount.toLocaleString()} />
-          </>
-        )}
         {importDate !== undefined && (
           <>
             <Separator />
@@ -196,28 +208,28 @@ export default function ExportSummary({
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
         {/* Export Excel */}
         <button
-          onClick={() => exportUpdatedExcel(headers, enrichedRows, baseName, activeSheet)}
-          disabled={enrichedRows.length === 0}
-          title={`Export ${enrichedRows.length} rows as Excel with Progress & Status`}
+          onClick={() => exportExcelOriginal(headers, rows, baseName, activeSheet)}
+          disabled={rows.length === 0}
+          title={`Export ${rows.length} rows as Excel`}
           style={{
             fontFamily: 'Roboto, Arial, Helvetica, sans-serif',
             fontWeight: 600,
             fontSize: '0.8125rem',
-            color: enrichedRows.length === 0 ? '#94A3B8' : '#059669',
+            color: rows.length === 0 ? '#94A3B8' : '#059669',
             background: 'transparent',
-            border: `1.5px solid ${enrichedRows.length === 0 ? '#E2E0D8' : '#6EE7B7'}`,
+            border: `1.5px solid ${rows.length === 0 ? '#E2E0D8' : '#6EE7B7'}`,
             borderRadius: 9,
             padding: '7px 14px',
-            cursor: enrichedRows.length === 0 ? 'not-allowed' : 'pointer',
+            cursor: rows.length === 0 ? 'not-allowed' : 'pointer',
             whiteSpace: 'nowrap',
             display: 'flex',
             alignItems: 'center',
             gap: 6,
             transition: 'all 0.15s',
-            opacity: enrichedRows.length === 0 ? 0.5 : 1,
+            opacity: rows.length === 0 ? 0.5 : 1,
           }}
           onMouseEnter={(e) => {
-            if (enrichedRows.length > 0) {
+            if (rows.length > 0) {
               (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F0FDF4';
               (e.currentTarget as HTMLButtonElement).style.borderColor = '#059669';
             }
@@ -225,7 +237,7 @@ export default function ExportSummary({
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
             (e.currentTarget as HTMLButtonElement).style.borderColor =
-              enrichedRows.length === 0 ? '#E2E0D8' : '#6EE7B7';
+              rows.length === 0 ? '#E2E0D8' : '#6EE7B7';
           }}
         >
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">

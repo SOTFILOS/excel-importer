@@ -65,12 +65,51 @@ function parseSheet(worksheet: XLSX.WorkSheet, sheetName: string): ParsedSheet {
     return { name: sheetName, headers: [], rows: [] };
   }
 
-  // ── 1. Trim trailing empty columns ────────────────────────────────────────
-  const maxCol = maxNonEmptyColumn(rawRows as unknown[][]);
-  const trimmed = (rawRows as unknown[][]).map((row) => row.slice(0, maxCol + 1));
+  // 1) Clean all cells: collapse whitespace/newlines and trim; whitespace-only → ''
+  const cleaned: unknown[][] = (rawRows as unknown[][]).map((row) =>
+    row.map((cell) => {
+      if (cell === null || cell === undefined) return '';
+      if (typeof cell === 'string') {
+        const s = cell
+          .replace(/\r\n|\r|\n/g, ' ')
+          .replace(/\s{2,}/g, ' ')
+          .trim();
+        return s === '' ? '' : s;
+      }
+      return cell;
+    })
+  );
 
-  // ── 2. Extract and clean headers ──────────────────────────────────────────
-  const headerRow = trimmed[0];
+  // 2) Remove entirely-empty columns (including interior ones)
+  const colCount = cleaned.reduce((max, row) => Math.max(max, row.length), 0);
+  const keepIndices: number[] = [];
+  for (let i = 0; i < colCount; i++) {
+    let hasValue = false;
+    for (let r = 0; r < cleaned.length; r++) {
+      const v = cleaned[r][i];
+      if (v !== '' && v !== null && v !== undefined) {
+        if (typeof v === 'string') {
+          if (v.trim().length > 0) {
+            hasValue = true;
+            break;
+          }
+        } else {
+          hasValue = true;
+          break;
+        }
+      }
+    }
+    if (hasValue) keepIndices.push(i);
+  }
+
+  const compact = cleaned.map((row) => keepIndices.map((idx) => row[idx] ?? ''));
+
+  if (compact.length === 0 || keepIndices.length === 0) {
+    return { name: sheetName, headers: [], rows: [] };
+  }
+
+  // 3) Extract and clean headers
+  const headerRow = compact[0];
   const rawHeaders = headerRow.map((cell, i) => normaliseHeader(cell, i));
 
   // Deduplicate colliding headers (e.g. two unnamed columns → "Column N (1)")
@@ -81,14 +120,16 @@ function parseSheet(worksheet: XLSX.WorkSheet, sheetName: string): ParsedSheet {
     return count === 0 ? h : `${h} (${count})`;
   });
 
-  // ── 3. Build data rows, skipping placeholder-only rows ────────────────────
-  const rows: Record<string, unknown>[] = trimmed
+  // 4) Build data rows, skipping placeholder-only rows
+  const rows: Record<string, unknown>[] = compact
     .slice(1)
     .filter(isSubstantiveRow)
     .map((rawRow) => {
       const record: Record<string, unknown> = {};
       headers.forEach((header, i) => {
-        record[header] = rawRow[i] ?? '';
+        let v = rawRow[i] ?? '';
+        if (typeof v === 'string') v = v.trim();
+        record[header] = v;
       });
       return record;
     });
@@ -133,8 +174,6 @@ export function useExcelParser(file: File | null): UseExcelParserResult {
           fileSize: file.size,
           sheets,
         };
-//hello
-//kjnjhjhjl
         setParsedFile(result);
         setActiveSheet(sheets[0]?.name ?? '');
       } catch (err) {
