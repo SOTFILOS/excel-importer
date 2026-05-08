@@ -164,3 +164,18 @@ body { font-family: 'Corp Sans', Arial, Helvetica, sans-serif; }
 - The Roboto stack includes pragmatic fallbacks: `Arial, Helvetica, sans-serif`.  
 - `font-display=swap` is enabled to avoid FOIT (Flash of Invisible Text).  
 - Retaining JetBrains Mono ensures consistent data table and metric readability where monospaced typography is beneficial.
+
+
+# Excel Importer
+
+A React application that allows users to upload Excel files and view data.
+
+## Technologies
+- React
+- TypeScript
+- Vite
+
+## How to run
+npm install
+npm run dev
+``
